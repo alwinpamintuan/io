@@ -2,6 +2,8 @@
 
 A static, client-side peripheral tester built with TypeScript and Three.js. Seven persistent devices share one desk, world, camera, and render loop. Select a device to test it; the arrow beside the IO mark and current-view label returns to the workstation.
 
+Live site: [alwinpamintuan.github.io/io](https://alwinpamintuan.github.io/io/). GitHub Actions deploys each push to `main` to GitHub Pages.
+
 ## Run and build
 
 Node.js 22.12 or newer is required (verified with Node.js 24).
@@ -38,3 +40,11 @@ In the 3D overview, viewports wider than 700 CSS pixels use the illustrated devi
 IO has no analytics, upload, recording, persistent diagnostic storage, or external runtime assets. Device observations stay in memory on the page. Camera/microphone permission is requested only by the corresponding Start button; selecting a device does not prompt. Stop, leaving focus, backgrounding the page, or shutdown stops media tracks and audio. Stale asynchronous requests cannot reactivate devices after cancellation. Browser permission preferences are managed by the browser.
 
 See [IO principles](docs/IO_Principles.md) for product, engineering, and design guidance.
+
+## Search and sharing
+
+The initial HTML includes a descriptive title, search and social descriptions, the canonical production URL, WebApplication structured data, and a readable guide to all seven testers below the workstation. Guide links open the existing hash routes and scroll back to the test surface. JavaScript is required for interactive testing.
+
+The sitemap is published at `https://alwinpamintuan.github.io/io/sitemap.xml`. It lists the main page only: device hashes are views within that page, not separate indexable pages. Submit the sitemap through Google Search Console after deployment. GitHub Pages serves this project under `/io/`; crawler rules belong at the host root `/robots.txt`, so a project-level robots file would not control crawling.
+
+When moving to another production address, update the canonical URL, `og:url`, JSON-LD URL in `index.html`, and the URL in `public/sitemap.xml` together.
