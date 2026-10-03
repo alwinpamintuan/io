@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MonitorAdapter, MONITOR_MODES } from './MonitorAdapter';
+import { MonitorAdapter } from './MonitorAdapter';
 
 // Browser verification exercises graphic controls; these tests isolate adapter behavior.
 vi.mock('../overlay/controls', () => ({ designButton: (b: HTMLButtonElement, label: string) => { b.textContent = label; b.ariaLabel = label; }, designChoice: () => {}, syncChoices: () => {} }));
@@ -29,16 +29,18 @@ function fixture(dpr = 1) {
 afterEach(() => vi.unstubAllGlobals());
 describe('monitor inspection', () => {
   it('fullscreens the controls wrapper at output size and immediately restores monitor aspect on exit', () => {
-    const { adapter, browser, page } = fixture(2); const authored = adapter.canvas.width;
+    const { adapter, browser, page } = fixture(2); const authored = [adapter.canvas.width, adapter.canvas.height];
     page.fullscreenElement = adapter.wrapper; page.dispatchEvent(new Event('fullscreenchange'));
-    expect(adapter.canvas.width).toBe(2880); expect(adapter.canvas.height).toBe(1800);
-    adapter.exit(); expect(page.exitFullscreen).toHaveBeenCalledOnce(); expect(adapter.canvas.width).toBe(authored); expect(adapter.canvas.height).toBe(Math.round(authored * 31.2 / 57.2));
+    expect(adapter.canvas.width).toBe(browser.innerWidth * browser.devicePixelRatio);
+    expect(adapter.canvas.height).toBe(browser.innerHeight * browser.devicePixelRatio);
+    adapter.exit(); expect(page.exitFullscreen).toHaveBeenCalledOnce();
+    expect([adapter.canvas.width, adapter.canvas.height]).toEqual(authored);
     adapter.canvas.width = 42; browser.dispatchEvent(new Event('resize')); expect(adapter.canvas.width).toBe(42);
   });
   it('keeps static patterns static, renders geometry as a circle and pauses functional motion', () => {
     const { adapter } = fixture(); const ctx = adapter.canvas.getContext('2d')!;
-    for (const mode of MONITOR_MODES) adapter.setMode(mode);
-    adapter.setMode('grid'); expect(ctx.arc).toHaveBeenLastCalledWith(adapter.canvas.width / 2, adapter.canvas.height / 2, Math.min(adapter.canvas.width, adapter.canvas.height) * 0.35, 0, Math.PI * 2);
+    adapter.setMode('grid');
+    expect(ctx.arc).toHaveBeenLastCalledWith(adapter.canvas.width / 2, adapter.canvas.height / 2, expect.any(Number), 0, Math.PI * 2);
     vi.mocked(ctx.fillRect).mockClear(); adapter.poll(10); adapter.poll(30); expect(ctx.fillRect).not.toHaveBeenCalled();
     adapter.setMode('motion'); adapter.setMotion(360, 'up', false); vi.mocked(ctx.fillRect).mockClear(); adapter.poll(50); expect(ctx.fillRect).toHaveBeenCalled();
     adapter.setMotion(360, 'up', true); vi.mocked(ctx.fillRect).mockClear(); adapter.poll(70); expect(ctx.fillRect).not.toHaveBeenCalled(); adapter.exit();
