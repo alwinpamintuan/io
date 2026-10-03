@@ -1,5 +1,5 @@
 export const DEVICE_IDS = [
-  'keyboard', 'mouse', 'monitor', 'camera', 'controller', 'audio',
+  'keyboard', 'mouse', 'monitor', 'camera', 'controller', 'audio', 'microphone',
 ] as const;
 
 export type DeviceId = (typeof DEVICE_IDS)[number];

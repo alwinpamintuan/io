@@ -14,10 +14,12 @@ export function normalizeGamepad(pad: Gamepad): GamepadSnapshot {
 }
 export class GamepadAdapter extends ObservableAdapter<GamepadSnapshot | null> {
   error: CapabilityError | null = null;
+  connection: 'unobserved' | 'exposed' | 'disconnected' = 'unobserved';
   private active = false;
   private value: GamepadSnapshot | null = null;
   private selected: number | null = null;
   private pad: Gamepad | null = null;
+  private signature = '';
   supported(): boolean { return typeof navigator.getGamepads === 'function'; }
   enter(): void {
     this.active = true; window.addEventListener('gamepadconnected', this.changed); window.addEventListener('gamepaddisconnected', this.changed);
@@ -26,7 +28,7 @@ export class GamepadAdapter extends ObservableAdapter<GamepadSnapshot | null> {
     this.active = false;
     window.removeEventListener('gamepadconnected', this.changed); window.removeEventListener('gamepaddisconnected', this.changed);
     void this.pad?.vibrationActuator?.reset?.().catch(() => {});
-    this.pad = null; this.value = null; this.selected = null; this.publish();
+    this.pad = null; this.value = null; this.selected = null; this.signature = ''; this.publish();
   }
   select(index: number): void { this.selected = index; }
   available(): Gamepad[] {
@@ -39,7 +41,11 @@ export class GamepadAdapter extends ObservableAdapter<GamepadSnapshot | null> {
     if (!this.active) return;
     const pads = this.available();
     this.pad = pads.find((pad) => pad.index === this.selected) ?? pads[0] ?? null;
-    this.value = this.pad ? normalizeGamepad(this.pad) : null; this.publish();
+    if (this.pad) this.connection = 'exposed';
+    else if (!this.error && this.connection !== 'unobserved') this.connection = 'disconnected';
+    this.value = this.pad ? normalizeGamepad(this.pad) : null;
+    const signature = this.value ? `${this.value.index}:${this.value.standard}:${this.value.buttons}:${this.value.pressed}:${this.value.axes}` : 'none';
+    if (signature !== this.signature) { this.signature = signature; this.publish(); }
   }
   async vibrate(): Promise<boolean> {
     if (!this.active || !this.pad?.vibrationActuator?.playEffect) return false;

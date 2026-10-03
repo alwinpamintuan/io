@@ -51,12 +51,13 @@ export class GraphicSolid {
   readonly mesh: Mesh;
   readonly silhouette = new GraphicLines('silhouette');
   readonly construction = new GraphicLines('construction');
-  private readonly geometry = new BufferGeometry();
+  private readonly geometry: BufferGeometry;
   private readonly facePlanes: { normal: Vector3; point: Vector3 }[];
   private readonly edges = new Map<string, { a: number; b: number; faces: number[] }>();
   private visibility = '';
 
-  constructor(private readonly shape: SolidShape, flatMaterial: MeshBasicMaterial, flat = false) {
+  constructor(private readonly shape: SolidShape, flatMaterial: MeshBasicMaterial, flat = false, authoredGeometry?: BufferGeometry) {
+    this.geometry = authoredGeometry ?? new BufferGeometry();
     const positions: number[] = [];
     const materials: MeshBasicMaterial[] = [];
     const batches: number[][] = [];
@@ -69,7 +70,7 @@ export class GraphicSolid {
       let materialIndex = materials.indexOf(material);
       if (materialIndex < 0) { materialIndex = materials.length; materials.push(material); batches.push([]); }
       const batch = batches[materialIndex]!;
-      for (let i = 1; i < face.indices.length - 1; i += 1) {
+      for (let i = 1; !authoredGeometry && i < face.indices.length - 1; i += 1) {
         for (const index of [face.indices[0]!, face.indices[i]!, face.indices[i + 1]!]) {
           const p = shape.vertices[index]!;
           batch.push(p.x, p.y, p.z);
@@ -86,18 +87,21 @@ export class GraphicSolid {
       return { normal, point: a };
     });
     // One draw per face material, rather than a separate draw for every polygon.
-    batches.forEach((batch, materialIndex) => {
+    if (!authoredGeometry) batches.forEach((batch, materialIndex) => {
       this.geometry.addGroup(positions.length / 3, batch.length / 3, materialIndex);
       positions.push(...batch);
     });
-    this.geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
-    this.geometry.computeVertexNormals();
+    if (!authoredGeometry) {
+      this.geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+      this.geometry.computeVertexNormals();
+    }
     this.mesh = new Mesh(this.geometry, materials);
     // Offset faces, rather than disabling depth test on outlines: real occlusion stays intact.
     this.object.add(this.mesh, this.silhouette.object, this.construction.object);
   }
 
   updateLines(camera: Camera, silhouetteOnly = false): void {
+    silhouetteOnly ||= this.object.userData.silhouetteOnly === true;
     const eye = this.object.worldToLocal(camera.getWorldPosition(new Vector3()));
     const visible = this.facePlanes.map(({ normal, point }) => normal.dot(eye.clone().sub(point)) > 0);
     const signature = `${visible.map(Number).join('')}:${silhouetteOnly}`;
@@ -108,7 +112,8 @@ export class GraphicSolid {
     for (const edge of this.edges.values()) {
       const a = edge.faces[0]!;
       const b = edge.faces[1]!;
-      const target = visible[a] !== visible[b] ? silhouette
+      const target = b === undefined ? visible[a] ? silhouette : null
+        : visible[a] !== visible[b] ? silhouette
         : visible[a] && !silhouetteOnly && this.facePlanes[a]!.normal.dot(this.facePlanes[b]!.normal) < 0.75
           ? construction : null;
       if (target) target.push(this.shape.vertices[edge.a]!, this.shape.vertices[edge.b]!);

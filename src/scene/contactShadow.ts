@@ -2,7 +2,7 @@ import { Color, Mesh, PlaneGeometry, ShaderMaterial } from 'three';
 import { PALETTE } from './materials';
 
 export function createContactShadow(width: number, depth: number, radius: number, opacity: number, ellipse = false) {
-  const fringe = 0.55;
+  const fringe = 0.22;
   const geometry = new PlaneGeometry(width + fringe * 2, depth + fringe * 2);
   const material = new ShaderMaterial({
     transparent: true, depthWrite: false,

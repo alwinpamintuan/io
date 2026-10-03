@@ -13,11 +13,11 @@ function copyPose(pose: CameraPose): CameraPose {
 }
 
 export function createOverviewPose(): CameraPose {
-  // Sheet §8.1 direction/FOV; 15% pullback and +5 cm target height keep the
-  // renderer spike clear of the top edge. All geometry shares this projection.
+  // Round 2 §4: pull back along the shared dimetric direction and center the
+  // lowered workstation mass, leaving air around the complete desk setup.
   return {
-    position: new Vector3(126.5, -506.75, 255),
-    target: new Vector3(0, 5, 25),
+    position: new Vector3(103, -411, 204),
+    target: new Vector3(0, 3, 17),
     fov: 11,
     roll: 0,
   };
@@ -30,6 +30,8 @@ export class CameraRig {
   private readonly target = new Vector3();
   private readonly interpolatedPosition = new Vector3();
   private readonly interpolatedTarget = new Vector3();
+  private readonly fromDirection = new Vector3();
+  private readonly toDirection = new Vector3();
   private roll = 0;
 
   constructor(overview: CameraPose = createOverviewPose()) {
@@ -65,9 +67,17 @@ export class CameraRig {
 
   interpolate(from: CameraPose, to: CameraPose, progress: number): void {
     const t = MathUtils.clamp(progress, 0, 1);
+    if(t===0 || t===1) {this.applyPose(t===0?from:to);return;}
+    const fromDistance=this.fromDirection.subVectors(from.position,from.target).length();
+    const toDistance=this.toDirection.subVectors(to.position,to.target).length();
+    // Interpolate distance in perceptual scale space. Opening the lens while
+    // linearly traversing a long distance made the workstation shrink first.
+    const distance=Math.exp(MathUtils.lerp(Math.log(Math.max(.01,fromDistance)),Math.log(Math.max(.01,toDistance)),t));
+    this.interpolatedTarget.lerpVectors(from.target,to.target,t);
+    this.interpolatedPosition.copy(this.fromDirection.normalize()).lerp(this.toDirection.normalize(),t).normalize().multiplyScalar(distance).add(this.interpolatedTarget);
     this.applyPose({
-      position: this.interpolatedPosition.lerpVectors(from.position, to.position, t),
-      target: this.interpolatedTarget.lerpVectors(from.target, to.target, t),
+      position: this.interpolatedPosition,
+      target: this.interpolatedTarget,
       fov: MathUtils.lerp(from.fov, to.fov, t),
       roll: MathUtils.lerp(from.roll, to.roll, t),
     });

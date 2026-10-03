@@ -15,6 +15,6 @@ it('reuses GPU attributes for live data and disposes before growing capacity', (
 describe('line width roles', () => {
   it('preserves CSS resolution independently of segment capacity', () => {
     const lines = new GraphicLines('silhouette'); lines.resize(1440, 900); lines.setPoints([new Vector3(), new Vector3(1, 1, 1)]);
-    expect(lines.object.material.resolution.toArray()).toEqual([1440, 900]); expect(lines.object.material.linewidth).toBe(3.25); lines.dispose();
+    expect(lines.object.material.resolution.toArray()).toEqual([1440, 900]); expect(lines.object.material.linewidth).toBe(2); lines.dispose();
   });
 });

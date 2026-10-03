@@ -19,13 +19,11 @@ export function startFallback(original: HTMLCanvasElement, status: HTMLParagraph
     pointer(value) { clear(); if (!ctx) return; ctx.strokeStyle = '#777772'; ctx.beginPath(); value.trail.forEach((point, i) => { if (i) ctx.lineTo(point.x, point.y); else ctx.moveTo(point.x, point.y); }); ctx.stroke(); },
     monitor(source) { pattern = source; clear(); ctx?.drawImage(source, canvas.width * 0.15, canvas.height * 0.2, canvas.width * 0.7, canvas.height * 0.5); },
     resetMonitor() { pattern = null; clear(); },
-    camera(value) {
-      if (value.video) { video = value.video; video.className = 'fallback-video'; app.append(video); }
-      else { video?.remove(); video = null; clear(); }
-    },
+    camera() {}, controllerStyle() {},
     gamepad(value) { text(value ? value.id : 'Connect a controller and press a button'); },
-    audio(value) {
-      clear(); if (!ctx || value.microphone !== 'live') return;
+    audio() {},
+    microphone(value) {
+      clear(); if (!ctx || value.state !== 'live') return;
       ctx.strokeStyle = '#0a0a0a'; ctx.beginPath();
       value.waveform.forEach((sample, i) => { const x = canvas.width * (0.2 + i / value.waveform.length * 0.6); const y = canvas.height / 2 + sample * 80; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke();
     },
@@ -47,6 +45,7 @@ export function startFallback(original: HTMLCanvasElement, status: HTMLParagraph
   });
   const unsubscribeRoute = router.subscribe((device) => store.dispatch({ type: 'navigate', device }));
   const resize = (): void => {
+    nav.style.top=`${status.offsetTop+status.offsetHeight+24}px`;
     canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
     if (pattern) scene.monitor(pattern); else clear();
   }; window.addEventListener('resize', resize); resize();

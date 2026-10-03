@@ -15,10 +15,16 @@ export class GraphicLines {
 
   constructor(role: LineRole, points: readonly Vector3[] = []) {
     this.material = new LineMaterial({
-      color: PALETTE.ink, linewidth: LINE_WIDTHS[role], worldUnits: false,
+      color: role === 'silhouette' ? PALETTE.ink : PALETTE.secondary,
+      linewidth: LINE_WIDTHS[role], worldUnits: false,
       alphaToCoverage: true, depthTest: true, depthWrite: false,
     });
     this.object = new LineSegments2(this.geometry, this.material);
+    // Ink does not write depth. Draw it after opaque faces so material cloning
+    // cannot let a later face erase its own seam; depth still hides rear edges.
+    this.object.renderOrder = 2;
+    this.object.name = `${role}:Ink`;
+    this.object.userData.lineRole = role;
     // CSS-pixel widths: the addon normally supplies drawing-buffer dimensions.
     this.object.onBeforeRender = () => {};
     this.setPoints(points);

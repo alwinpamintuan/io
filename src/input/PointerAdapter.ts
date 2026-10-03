@@ -4,11 +4,13 @@ import { ObservableAdapter } from './adapter';
 export interface PointerSnapshot {
   buttons: number; clickMs: number | null; wheel: { x: number; y: number; mode: number; angle: number };
   trail: readonly { x: number; y: number; time: number }[];
+  extra?: readonly { index: number; down: boolean }[];
 }
 export class PointerAdapter extends ObservableAdapter<PointerSnapshot> {
   readonly timing = new TimingWindow();
   private active = false;
   private buttons = 0;
+  private extra = new Map<number, boolean>();
   private presses = new Map<number, number>();
   private clickMs: number | null = null;
   private wheel = { x: 0, y: 0, mode: 0, angle: 0 };
@@ -22,6 +24,7 @@ export class PointerAdapter extends ObservableAdapter<PointerSnapshot> {
     this.browser.addEventListener('pointerup', this.up);
     this.surface.addEventListener('wheel', this.scroll, { passive: false });
     this.surface.addEventListener('contextmenu', this.context);
+    this.surface.addEventListener('auxclick', this.auxiliary);
     this.surface.addEventListener('pointercancel', this.clear);
     this.browser.addEventListener('blur', this.clear);
   }
@@ -30,12 +33,13 @@ export class PointerAdapter extends ObservableAdapter<PointerSnapshot> {
     this.surface.removeEventListener('pointermove', this.move); this.surface.removeEventListener('pointerdown', this.down);
     this.browser.removeEventListener('pointerup', this.up); this.surface.removeEventListener('wheel', this.scroll);
     this.surface.removeEventListener('contextmenu', this.context); this.surface.removeEventListener('pointercancel', this.clear);
+    this.surface.removeEventListener('auxclick', this.auxiliary);
     this.browser.removeEventListener('blur', this.clear); this.reset();
   }
-  reset(): void { this.buttons = 0; this.presses.clear(); this.clickMs = null; this.wheel = { x: 0, y: 0, mode: 0, angle: 0 }; this.trail = []; this.timing.reset(); this.publish(); }
-  snapshot(): PointerSnapshot { return { buttons: this.buttons, clickMs: this.clickMs, wheel: { ...this.wheel }, trail: [...this.trail] }; }
+  reset(): void { this.buttons = 0; this.extra.clear(); this.presses.clear(); this.clickMs = null; this.wheel = { x: 0, y: 0, mode: 0, angle: 0 }; this.trail = []; this.timing.reset(); this.publish(); }
+  snapshot(): PointerSnapshot { return { buttons: this.buttons, extra: [...this.extra].map(([index, down]) => ({ index, down })), clickMs: this.clickMs, wheel: { ...this.wheel }, trail: [...this.trail] }; }
   prune(now: number): void { this.trail = this.trail.filter((sample) => now - sample.time < 650); }
-  private clear = (): void => { this.buttons = 0; this.trail = []; this.timing.reset(); this.publish(); };
+  private clear = (): void => { this.buttons = 0; this.extra.forEach((_, i) => this.extra.set(i, false)); this.presses.clear(); this.trail = []; this.timing.reset(); this.publish(); };
   private move = (event: PointerEvent): void => {
     if (event.pointerType !== 'mouse') return;
     let samples: PointerEvent[] = [];
@@ -49,6 +53,7 @@ export class PointerAdapter extends ObservableAdapter<PointerSnapshot> {
   private down = (event: PointerEvent): void => {
     if (event.pointerType !== 'mouse') return;
     this.transitions(event);
+    if (event.button >= 5) this.extra.set(event.button, true);
     if (event.button === 1 || event.button >= 3) event.preventDefault();
     this.publish();
   };
@@ -62,11 +67,12 @@ export class PointerAdapter extends ObservableAdapter<PointerSnapshot> {
     }
     this.buttons = event.buttons;
   }
-  private up = (event: PointerEvent): void => { if (event.pointerType === 'mouse') { this.transitions(event); this.publish(); } };
+  private up = (event: PointerEvent): void => { if (event.pointerType === 'mouse') { this.transitions(event); if (event.button >= 5) this.extra.set(event.button, false); this.publish(); } };
   private scroll = (event: WheelEvent): void => {
     event.preventDefault();
     const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? this.surface.clientHeight : 1);
     this.wheel = { x: event.deltaX, y: event.deltaY, mode: event.deltaMode, angle: this.wheel.angle + pixels * 0.015 }; this.publish();
   };
   private context = (event: MouseEvent): void => { event.preventDefault(); };
+  private auxiliary = (event: MouseEvent): void => { if (event.button === 1 || event.button >= 3) event.preventDefault(); };
 }

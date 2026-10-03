@@ -5,8 +5,8 @@ export type CaptureState = 'idle' | 'requesting' | 'live' | CapabilityError;
 export const ERROR_TEXT: Record<CapabilityError, string> = {
   unsupported: 'This browser does not support this test.',
   'permission-denied': 'Access was denied. Allow access in your browser settings, then retry.',
-  'device-unavailable': 'No available device was found. Connect a device and retry.',
-  'device-disconnected': 'The device disconnected. Connect it and retry.',
+  'device-unavailable': 'The source is unavailable, missing, or busy. Check it and retry.',
+  'device-disconnected': 'Capture ended or the exposed source disconnected. Select Start to retry.',
   'secure-context-required': 'Camera and microphone tests require HTTPS or localhost.',
   unknown: 'The test could not start. Please retry.',
 };

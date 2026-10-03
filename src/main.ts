@@ -95,6 +95,7 @@ function startApplication(): () => void {
   };
   const onContextRestored = (): void => {
     status.classList.add('sr-only'); status.classList.remove('compatibility-message');
+    const state = store.getState(); status.textContent = state.mode === 'overview' ? 'Choose a device to test.' : `${state.device} ${state.phase === 'active' ? 'ready' : state.phase}.`;
     scene.invalidate(); resize(); inputs.resume(); loop.start();
   };
   canvas.addEventListener('webglcontextlost', onContextLost); canvas.addEventListener('webglcontextrestored', onContextRestored);

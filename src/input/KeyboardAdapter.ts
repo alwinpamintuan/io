@@ -13,26 +13,26 @@ export class KeyboardAdapter extends ObservableAdapter<KeyboardSnapshot> {
   private last: string | null = null;
   private holdMs: number | null = null;
   private repeatMs: number | null = null;
-  constructor(private readonly browser: Window = window) { super(); }
+  constructor(private readonly browser: Window = window, private readonly surface: HTMLElement | null = null) { super(); }
   supported(): boolean { return true; }
   enter(): void {
     if (this.active) return;
-    this.active = true; this.reset();
+    this.active = true; this.clearHeld();
     this.browser.addEventListener('keydown', this.down); this.browser.addEventListener('keyup', this.up);
     this.browser.addEventListener('blur', this.clearHeld);
   }
   exit(): void {
     this.active = false;
     this.browser.removeEventListener('keydown', this.down); this.browser.removeEventListener('keyup', this.up);
-    this.browser.removeEventListener('blur', this.clearHeld); this.reset();
+    this.browser.removeEventListener('blur', this.clearHeld); this.clearHeld();
   }
   reset(): void { this.held.clear(); this.tested.clear(); this.repeats.clear(); this.last = null; this.holdMs = null; this.repeatMs = null; this.publish(); }
   snapshot(): KeyboardSnapshot { return { held: new Map(this.held), tested: new Set(this.tested), last: this.last, holdMs: this.holdMs, repeatMs: this.repeatMs }; }
-  private clearHeld = (): void => { this.held.clear(); this.repeats.clear(); this.publish(); };
+  private clearHeld = (): void => { this.held.clear(); this.repeats.clear(); this.last = null; this.holdMs = null; this.repeatMs = null; this.publish(); };
   private down = (event: KeyboardEvent): void => {
-    if (isControl(event.target)) return;
+    if (isControl(event.target) || this.surface && event.target !== this.surface) return;
     const code = keyboardCode(event); if (!code || code === 'Unidentified') return;
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Backspace'].includes(code) && !event.metaKey && !event.ctrlKey && !event.altKey) event.preventDefault();
+    if ((['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Backspace'].includes(code) || /^F(?:[1-9]|1[0-2])$/.test(code)) && event.cancelable && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) event.preventDefault();
     if (!this.held.has(code)) { this.held.set(code, event.timeStamp); this.tested.add(code); this.repeatMs = null; }
     else if (event.repeat) this.repeatMs = event.timeStamp - (this.repeats.get(code) ?? this.held.get(code)!);
     this.repeats.set(code, event.timeStamp); this.last = code; this.publish();

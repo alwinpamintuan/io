@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MediaCapture } from './MediaCapture';
 import { AudioAdapter } from './AudioAdapter';
+import { MicrophoneAdapter } from './MicrophoneAdapter';
 import { normalizeGamepad } from './GamepadAdapter';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -35,10 +36,11 @@ describe('media lifecycle', () => {
     const context = { resume: () => resume.promise, close: async () => {}, createOscillator };
     vi.stubGlobal('window', { AudioContext: function () { return context; }, isSecureContext: true, navigator: { mediaDevices: { getUserMedia } } });
     vi.stubGlobal('AudioContext', function () { return context; });
-    const audio = new AudioAdapter(); audio.enter();
-    const tone = audio.tone('left', 440); const microphone = audio.startMicrophone();
-    audio.stopOutput(); audio.stopMicrophone(); resume.resolve(); await Promise.all([tone, microphone]);
-    expect(createOscillator).not.toHaveBeenCalled(); expect(getUserMedia).not.toHaveBeenCalled(); audio.exit();
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+    const audio = new AudioAdapter(); audio.enter(); const mic = new MicrophoneAdapter(); mic.enter();
+    const tone = audio.tone('left', 440); const microphone = mic.start();
+    audio.stopOutput(); mic.stop(); resume.resolve(); await Promise.all([tone, microphone]);
+    expect(createOscillator).not.toHaveBeenCalled(); expect(getUserMedia).not.toHaveBeenCalled(); audio.exit(); mic.exit();
   });
   it('keeps generic gamepad indexes and raw small offsets without a hidden deadzone', () => {
     const pad = normalizeGamepad({ id: 'Generic', index: 2, mapping: '', axes: [0.001, -0.003], buttons: [{ value: 0.42, pressed: false }], timestamp: 1 } as unknown as Gamepad);

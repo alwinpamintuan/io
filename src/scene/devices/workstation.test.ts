@@ -25,7 +25,25 @@ describe('persistent workstation', () => {
       return Array.from({ length: attribute.count }, (_, i) => solid.mesh.localToWorld(new Vector3().fromBufferAttribute(attribute, i)).project(rig.camera));
     });
     const occupancy = (Math.max(...projected.map((point) => point.x)) - Math.min(...projected.map((point) => point.x))) / 2;
-    expect(occupancy).toBeGreaterThanOrEqual(0.66); expect(occupancy).toBeLessThanOrEqual(0.74);
+    // Round 2 §4/15: calm outer margins, coherent internal density.
+    expect(occupancy).toBeGreaterThan(0.5);
+    expect(occupancy).toBeLessThanOrEqual(0.7);
+    const height = (Math.max(...projected.map(point => point.y)) - Math.min(...projected.map(point => point.y))) / 2;
+    expect(height).toBeGreaterThan(.55); expect(height).toBeLessThan(.72);
+    expect(Math.max(...projected.map(point => Math.abs(point.y)))).toBeLessThan(.8);
+    const speakerPositions = station.drivers.map(driver => driver.getWorldPosition(new Vector3()));
+    expect(speakerPositions[0]!.z).toBe(speakerPositions[1]!.z);
+    expect(Math.abs(speakerPositions[0]!.y - speakerPositions[1]!.y)).toBeLessThan(3);
+    const stem = station.solids.find(solid => solid.object.name === 'monitor.stem')!;
+    expect(new Box3().setFromObject(stem.mesh).max.z).toBeLessThan(12);
+    const panel = station.solids.find(solid => solid.object.name === 'monitor.panel')!;
+    expect(new Box3().setFromObject(panel.mesh).min.z).toBeCloseTo(11.2, 1);
+    const shell = station.solids.find(solid => solid.mesh.name === 'controller.shell')!;
+    expect(new Box3().setFromObject(shell.mesh).max.z).toBeCloseTo(2.4);
+    const leftDriver = station.drivers[0]!.getWorldPosition(new Vector3());
+    const monitor = new Box3().setFromObject(station.visuals.get('monitor')!);
+    expect(monitor.min.x - leftDriver.x).toBeGreaterThan(0);
+    expect(monitor.min.x - leftDriver.x).toBeLessThan(2 * 8.5);
     const keyboard = station.visuals.get('keyboard')!;
     const rest = rig.snapshot();
     rig.interpolate(rest, focusPose('keyboard', new Vector3(0, -14, 4.5), 1.6), 1);

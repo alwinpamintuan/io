@@ -1,6 +1,6 @@
 :root {
-  color: #0a0a0a;
-  background: #f4f4f0;
+  color: #111111;
+  background: #f3f2ec;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-synthesis: none;
 }
@@ -55,35 +55,102 @@ body { margin: 0; }
   left: 28px;
   white-space: pre;
   font-size: 12px;
-  color: #777772;
+  color: #5d5d58;
   pointer-events: none;
 }
 .device-navigation { position: absolute; inset: 0; pointer-events: none; }
-.device-navigation button { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); pointer-events: auto; }
-.device-navigation button:focus-visible { top: 84px; left: 28px; width: auto; height: auto; padding: 10px 16px; clip-path: none; outline: 2px solid #0a0a0a; background: #f4f4f0; text-transform: capitalize; }
+.device-navigation button { appearance:none; font:inherit; border:0; position:absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); pointer-events: auto; }
+.device-navigation button:focus-visible { top: 84px; left: 28px; width: auto; height: auto; padding: 10px 16px; clip-path: none; outline: 2px solid #111111; background: #f3f2ec; text-transform: capitalize; }
 .instrument { position: absolute; top: 0; left: 0; width: max-content; max-width: min(340px, calc(100vw - 48px)); font-size: 12px; line-height: 1.6; font-variant-numeric: tabular-nums; }
 .annotation-connector { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.annotation-connector path { fill: none; stroke: #777772; stroke-width: 0.75; }
-.motion-debug { position: absolute; bottom: 18px; left: 28px; max-width: min(600px, 90vw); background: #f4f4f0; font-size: 10px; }
+.annotation-connector path { fill: none; stroke: #5d5d58; stroke-width: 0.75; }
+.motion-debug { position: absolute; bottom: 18px; left: 28px; max-width: min(600px, 90vw); background: #f3f2ec; font-size: 10px; }
 .motion-debug pre { white-space: pre-wrap; }
-.measurements { display: block; white-space: pre-wrap; min-height: 1.6em; background: #f4f4f0; }
-.test-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.test-controls button, .test-controls select { font: inherit; color: inherit; background: #f4f4f0; border: 1px solid #777772; padding: 5px 9px; min-height: 32px; }
-.test-controls button:hover, .test-controls button[aria-pressed="true"] { background: #0a0a0a; color: #f4f4f0; }
-.test-controls button:focus-visible, .test-controls select:focus-visible { outline: 2px solid #0a0a0a; outline-offset: 3px; }
-.test-message { color: #777772; background: #f4f4f0; max-width: 36ch; font-size: 10px; margin: 10px 0 0; }
+.measurements { display: block; white-space: pre-wrap; min-height: 1.6em; background: #f3f2ec; }
+.test-controls { display: flex; align-items:center; flex-wrap: wrap; gap: 4px; margin-top: 12px; }
+.test-controls button { appearance:none; font: inherit; color: inherit; background: transparent; border: 0; padding: 5px 9px; min-height: 40px; cursor:pointer; }
+.test-controls .glyph-control { width:40px; padding:0; font-size:22px; line-height:1; }
+.test-controls .glyph-control span { pointer-events:none; }
+.semantic-choice { display:none; }
+.inline-choice { position:relative; max-width:220px; }
+.choice-trigger { max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; border-bottom:1px solid #5d5d58 !important; }
+.choice-options { position:absolute; z-index:10; bottom:calc(100% + 5px); left:0; min-width:100%; max-width:min(300px,calc(100vw - 48px)); max-height:35vh; overflow:auto; background:#f3f2ec; border:1px solid #111; padding:4px; }
+.choice-option { display:block; width:100%; text-align:left; }
+.choice-option[aria-selected=true] { background:#111;color:#f3f2ec; }
+.pattern-options { display:flex; flex-wrap:wrap; gap:2px; }
+.test-controls .pattern-glyph { min-height:36px; width:32px; padding:0; font-size:19px; }
+.pattern-glyph[aria-pressed=true] { background:#111;color:#f3f2ec; }
+.pattern-rail { max-width:100%; }
+.test-controls button:hover, .test-controls button[aria-pressed="true"] { background: #111111; color: #f3f2ec; }
+.test-controls button:focus-visible, .test-controls select:focus-visible { outline: 2px solid #111111; outline-offset: 3px; }
+.choice-option:focus-visible { outline-offset:-2px; }
+.test-message { color: #5d5d58; background: #f3f2ec; max-width: 36ch; font-size: 10px; margin: 10px 0 0; }
 [hidden] { display: none !important; }
 .fullscreen-pattern { display: none; }
-.fullscreen-pattern:fullscreen { display: block; width: 100vw; height: 100vh; object-fit: fill; background: #f4f4f0; }
-.fallback-navigation { position: absolute; top: 150px; left: 28px; display: flex; flex-wrap: wrap; gap: 8px; max-width: calc(100vw - 56px); }
-.fallback-navigation button { font: inherit; background: #f4f4f0; color: #0a0a0a; border: 1px solid #777772; padding: 8px 12px; text-transform: capitalize; }
-.fallback-navigation button:focus-visible { outline: 2px solid #0a0a0a; outline-offset: 3px; }
-.fallback-navigation button[aria-pressed="true"] { background: #0a0a0a; color: #f4f4f0; }
+.fullscreen-pattern:fullscreen { display: block; width: 100vw; height: 100vh; object-fit: fill; background: #f3f2ec; }
+.fallback-navigation { position: absolute; top: 150px; left: 28px; display: flex; flex-wrap: wrap; gap: 8px; max-width: calc(100vw - 56px); font-size:12px; }
+.fallback-navigation button { appearance:none; font: inherit; background: #f3f2ec; color: #111111; border: 1px solid #5d5d58; padding: 8px 12px; text-transform: capitalize; }
+.fallback-navigation button:focus-visible { outline: 2px solid #111111; outline-offset: 3px; }
+.fallback-navigation button[aria-pressed="true"] { background: #111111; color: #f3f2ec; }
 .fallback-video { position: absolute; top: 24%; left: 15%; width: 70%; height: 38%; object-fit: contain; }
 .test-controls button:disabled { opacity: 0.45; cursor: default; }
 @media (max-width: 700px) {
   .io-mark { top: 16px; left: 16px; }
   .instrument { font-size: 11px; }
   .device-navigation { inset: auto 16px 20px; display: flex; flex-wrap: wrap; gap: 8px; }
-  .device-navigation button { position: static; clip-path: none; width: auto; height: auto; padding: 8px; background: #f4f4f0; border: 1px solid #777772; text-transform: capitalize; }
+.device-navigation button { position: static; clip-path: none; width: auto; height: auto; padding: 8px; background: #f3f2ec; border: 1px solid #5d5d58; text-transform: capitalize; }
 }
+.camera-instrument { width: clamp(290px, 32vw, 460px); max-width: calc(100vw - 48px); }
+.camera-preview { width: 100%; height: clamp(180px, 25vh, 280px); position: relative; background: #dddcd5; }
+.camera-preview video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.preview-status { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; color: #5d5d58; }
+.camera-instrument .measurements { margin-top: 12px; }
+.monitor-fullscreen { display: none; background: #f3f2ec; }
+.monitor-fullscreen:fullscreen { display: block; width: 100vw; height: 100vh; position: fixed; inset: 0; }
+.monitor-fullscreen canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.fullscreen-controls { position: absolute; bottom: 24px; left: 24px; right: 24px; margin: 0; padding: 12px; background: #f3f2ec; font-size: 12px; }
+.fullscreen-controls small { flex-basis: 100%; color: #5d5d58; }
+.controls-hidden { opacity: 0; }
+.controls-hidden:focus-within { opacity: 1; }
+@media (max-width: 700px) {
+  .camera-instrument { width: min(300px, calc(100vw - 48px)); }
+  .camera-preview { height: min(22vh, 170px); }
+  .instrument { max-height: calc(100vh - 110px); overflow-y: auto; }
+  .fullscreen-controls { left: 12px; right: 12px; bottom: 12px; gap: 4px; padding: 8px; }
+  .drafting-marks { display: none; }
+}
+.indexed-controls { display: grid; grid-template-columns: repeat(2, minmax(90px, 1fr)); gap: 8px 14px; max-height: 30vh; overflow-y: auto; margin-top: 12px; background: #f3f2ec; }
+.indexed-observation { display: block; padding-bottom: 4px; position:relative; font-variant-numeric: tabular-nums; }
+.indexed-observation::after {content:'';position:absolute;left:0;bottom:0;width:var(--value);height:1px;background:#5d5d58;}
+.indexed-controls:focus-visible { outline: 2px solid #111111; outline-offset: 3px; }
+
+.visual-debug { position:absolute; left:24px; bottom:24px; padding:12px; background:#f3f2ec; font-size:10px; display:grid; grid-template-columns:repeat(2, max-content); gap:5px 18px; }
+.visual-debug label { display:flex; align-items:center; gap:6px; }
+
+.instrument[data-device="keyboard"] { width:max-content; max-width:calc(100vw - 64px); }
+.instrument[data-device="keyboard"] .test-controls { position:absolute;left:calc(100vw - 150px);bottom:0; }
+.instrument[data-device="monitor"] { width:calc(100vw - 64px);max-width:none; }
+.instrument[data-device="monitor"] .measurements { position:absolute;right:0;bottom:72vh; }
+.instrument[data-device="monitor"] .test-message { max-width:none; }
+.camera-instrument { width:min(40vw,640px);max-width:calc(100vw - 48px); }
+.camera-preview { height:auto;aspect-ratio:16/9;background:#dddcd5; }
+.camera-instrument .measurements { position:absolute;top:8px;right:10px;margin:0;padding:0 5px;max-width:90%; }
+.camera-instrument .test-controls { margin-top:18px; }
+@media(max-width:799px) {
+ .camera-instrument {width:min(76vw,420px);}
+ .instrument[data-device="keyboard"] .test-controls {position:static;}
+ .instrument[data-device="monitor"] {width:calc(100vw - 48px);max-width:calc(100vw - 48px);}
+ .instrument[data-device="monitor"] .measurements {position:static;}
+ .camera-preview {height:auto;}
+}
+@media(prefers-reduced-motion:reduce) {.camera-preview {transition:none;}}
+
+.camera-preview:not([data-state=live]) .preview-status {color:#5d5d58;}
+.drafting-marks {position:absolute;inset:104px 28px 28px;pointer-events:none;opacity:.28;}
+.registration {position:absolute;width:10px;height:10px;border-color:#5d5d58;pointer-events:none;}
+.corner-0 {left:0;top:0;border-left:1px solid;border-top:1px solid;}
+.corner-1 {right:0;top:0;border-right:1px solid;border-top:1px solid;}
+.corner-2 {left:0;bottom:0;border-left:1px solid;border-bottom:1px solid;}
+.corner-3 {right:0;bottom:0;border-right:1px solid;border-bottom:1px solid;}
+.camera-preview .registration {opacity:.6;}
+.camera-instrument .measurements {font-size:10px;}

@@ -1,4 +1,4 @@
-import { CanvasTexture, Color, Group, MathUtils, Mesh, NoToneMapping, Plane, Raycaster, Scene, SRGBColorSpace, Vector2, Vector3, VideoTexture, WebGLRenderer } from 'three';
+import { Box3, CanvasTexture, Color, Group, MathUtils, Mesh, NearestFilter, NoToneMapping, Plane, Raycaster, Scene, SRGBColorSpace, Vector2, Vector3, WebGLRenderer } from 'three';
 import type { Material } from 'three';
 import type { DeviceId } from '../app/state';
 import type { SceneAction, SceneState } from '../app/state';
@@ -15,6 +15,9 @@ import { GraphicLines } from './lines';
 import type { CameraSnapshot } from '../input/CameraAdapter';
 import type { GamepadSnapshot } from '../input/GamepadAdapter';
 import type { AudioSnapshot } from '../input/AudioAdapter';
+import type { MicrophoneSnapshot } from '../input/MicrophoneAdapter';
+import { createControllerLegends } from './devices/controllerLegends';
+import type { LegendStyle } from './devices/controllerLegends';
 import { parseHash } from '../app/router';
 import { createSceneDebug, NO_DEBUG, readDebugOptions } from './debug';
 
@@ -41,11 +44,16 @@ export class SceneController {
   private readonly keys: ReturnType<typeof createKeyboardKeys>;
   private readonly trail = new GraphicLines('detail');
   private trailSignature = '';
+  private wheelObservedAngle = 0;
+  private wheelTargetAngle = 0;
   private dispatch: ((action: SceneAction) => void) | null = null;
   private screenTexture: CanvasTexture | null = null;
-  private videoTexture: VideoTexture | null = null;
+  private readonly legends: ReturnType<typeof createControllerLegends>;
+  private readonly detailBounds = new Map<DeviceId, Box3>();
+  private readonly detailStrength = new Map<DeviceId, number>();
   private readonly waveform = new GraphicLines('detail');
-  private readonly waves = Array.from({ length: 4 }, () => new GraphicLines('detail'));
+  private readonly stickScopes = [new GraphicLines('detail'), new GraphicLines('detail')];
+  private readonly waves = Array.from({ length: 4 }, () => new GraphicLines('construction'));
   private readonly initialRoute = parseHash(window.location.hash);
   private readonly contrastMaterials = new Map<DeviceId, { material: Material & { color: Color }; color: Color }[]>();
   private readonly ownedContrastMaterials: Material[] = [];
@@ -59,7 +67,7 @@ export class SceneController {
     this.materials = createMaterials();
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.toneMapping = NoToneMapping;
-    this.renderer.setClearColor(PALETTE.paper, 1);
+    this.renderer.setClearColor(this.debugOptions.flat ? 0xe8e8e8 : PALETTE.background, 1);
     this.worldRoot.name = 'WorldRoot';
     this.scene.add(this.worldRoot);
     for (const [device, root] of this.deviceRoots) {
@@ -74,9 +82,17 @@ export class SceneController {
     });
     this.keys = createKeyboardKeys(this.workstation.visuals.get('keyboard')! as Group);
     this.keys.group.visible = !this.debugOptions.flat; this.keys.detail(false);
+    if (this.debugOptions.silhouette) {
+      this.workstation.solids.forEach(solid => { solid.mesh.material = this.materials.ink; solid.silhouette.object.visible = false; solid.construction.object.visible = false; });
+      this.keys.group.visible = false;
+      this.workstation.screen.material.color.set(PALETTE.ink);
+    }
     this.cloneDeviceMaterials();
+    this.legends = createControllerLegends(this.workstation.buttons); this.legends.detail(0);
+    this.worldRoot.updateMatrixWorld(true);
+    this.workstation.visuals.forEach((visual, id) => { this.detailBounds.set(id, new Box3().setFromObject(visual)); this.detailStrength.set(id, 0); });
     this.trail.object.name = 'PointerTrail'; this.worldRoot.add(this.trail.object);
-    this.worldRoot.add(this.waveform.object, ...this.waves.map((wave) => wave.object));
+    this.worldRoot.add(this.waveform.object, ...this.waves.map((wave) => wave.object), ...this.stickScopes.map(scope => scope.object));
     this.waveform.object.visible = false; this.waves.forEach((wave) => { wave.object.visible = false; });
     this.worldRoot.updateMatrixWorld(true);
     this.debug = import.meta.env.DEV
@@ -117,8 +133,9 @@ export class SceneController {
         const selected = id === route && (!corridor || entry);
         const lift = selected ? FOCUS_LIFT[id] : 0;
         const rotation = selected ? MathUtils.degToRad(FOCUS_YAW[id]) : 0;
-        visual.position.z = MathUtils.lerp(corridor && entry ? 0 : z, lift, t);
-        visual.rotation.z = MathUtils.lerp(corridor && entry ? 0 : yaw, rotation, t);
+        const clearTuck=selected && id==='controller' && !this.reducedMotion;
+        visual.position.z = MathUtils.lerp(corridor && entry ? 0 : z, lift, clearTuck?Math.min(1,t/.7):t);
+        visual.rotation.z = MathUtils.lerp(corridor && entry ? 0 : yaw, rotation, clearTuck?Math.max(0,(t-.12)/.88):t);
       }
       this.invalidate();
       this.keys.detail(route === 'keyboard' && progress > 0.45);
@@ -153,6 +170,7 @@ export class SceneController {
     this.workstation.resize(width, height);
     this.trail.resize(width, height);
     this.waveform.resize(width, height); this.waves.forEach((wave) => wave.resize(width, height));
+    this.stickScopes.forEach(scope => scope.resize(width,height));
     this.registerPoses();
     if (this.motion.active && this.state && this.dispatch) this.applyState(this.state, this.dispatch);
     else this.cameraRig.applyPose(this.cameraRig.poseFor(this.state?.mode === 'focus' ? this.state.device : null));
@@ -162,10 +180,18 @@ export class SceneController {
   invalidate(): void {
     this.dirty = true;
   }
+  focusProgress(): number { return this.motion.active ? this.motion.progress : 1; }
 
   update(deltaSeconds: number): void {
     this.frameMs = deltaSeconds * 1000;
     this.motion.update(deltaSeconds);
+    const wheel=this.workstation.mouseWheel;
+    if(Math.abs(wheel.rotation.x-this.wheelTargetAngle)>.001) {
+      wheel.rotation.x=this.reducedMotion?this.wheelTargetAngle:MathUtils.lerp(wheel.rotation.x,this.wheelTargetAngle,1-Math.exp(-deltaSeconds/0.025));
+      if(Math.abs(wheel.rotation.x-this.wheelTargetAngle)<.001)wheel.rotation.x=this.wheelTargetAngle;
+      this.invalidate();
+    }
+    this.resolveDetail(deltaSeconds);
     if (this.state?.mode === 'overview') {
       for (const [id, visual] of this.workstation.visuals) {
         const desired = !this.reducedMotion && id === this.hovered && id !== 'monitor' && id !== 'camera' ? 0.45 : 0;
@@ -181,7 +207,7 @@ export class SceneController {
     for (const [id, visual] of this.workstation.visuals) {
       const clones = new Map<Material, Material>(); const entries: { material: Material & { color: Color }; color: Color }[] = [];
       visual.traverse((object) => {
-        if (!(object instanceof Mesh) || object.name.endsWith('HitTarget')) return;
+        if (!(object instanceof Mesh) || object.name.endsWith('HitTarget') || object === this.workstation.screen) return;
         const replace = (material: Material): Material => {
           if (!('color' in material) || !(material.color instanceof Color)) return material;
           if ('isLineMaterial' in material) {
@@ -201,6 +227,7 @@ export class SceneController {
   }
 
   private contrast(selected: DeviceId | null, strength: number): void {
+    if (this.debugOptions.flat || this.debugOptions.silhouette) return;
     const paper = new Color(PALETTE.paper);
     for (const [id, entries] of this.contrastMaterials) {
       const amount = id === selected ? 0 : Math.max(0, Math.min(1, strength)) * 0.55;
@@ -254,11 +281,15 @@ export class SceneController {
 
   pointer(snapshot: PointerSnapshot): void {
     this.workstation.mouseButtons.forEach((button, index) => {
-      const down = (snapshot.buttons & (index === 0 ? 1 : 2)) !== 0;
-      button.object.position.z = down ? 3.25 : 3.45;
-      button.mesh.material = down ? this.materials.ink : this.materials.paper;
+      const down = (snapshot.buttons & [1, 2, 8, 16][index]!) !== 0;
+      button.object.position.copy(this.workstation.mouseRest[index]!);
+      if (index < 2) button.object.position.z -= down ? 0.08 : 0; else button.object.position.x += down ? 0.035 : 0;
+      button.mesh.material = down ? this.materials.ink : index < 2 ? this.materials.paper : this.materials.sideDeep;
     });
-    this.workstation.mouseWheel.rotation.x = snapshot.wheel.angle;
+    const wheelDelta=snapshot.wheel.angle-this.wheelObservedAngle;
+    this.wheelObservedAngle=snapshot.wheel.angle;
+    this.wheelTargetAngle=snapshot.wheel.angle===0?0:this.wheelTargetAngle+MathUtils.clamp(wheelDelta,-Math.PI/3,Math.PI/3);
+    this.workstation.mouseWheel.position.z=2.85-(snapshot.buttons&4?.08:0);
     const wheelMesh = this.workstation.mouseWheel.children.find((child) => child instanceof Mesh) as Mesh | undefined;
     if (wheelMesh) wheelMesh.material = snapshot.buttons & 4 ? this.materials.sideDeep : this.materials.ink;
     const points: Vector3[] = [];
@@ -275,59 +306,85 @@ export class SceneController {
   }
 
   monitor(canvas: HTMLCanvasElement): void {
+    if (this.debugOptions.flat || this.debugOptions.silhouette) return;
+    this.workstation.screenIdentity.visible = false;
     if (this.screenTexture?.image !== canvas) {
       this.screenTexture?.dispose(); this.screenTexture = new CanvasTexture(canvas); this.screenTexture.colorSpace = SRGBColorSpace;
-      this.workstation.screen.material.map = this.screenTexture; this.workstation.screen.material.needsUpdate = true;
     }
+    if (this.workstation.screen.material.map !== this.screenTexture) { this.workstation.screen.material.map = this.screenTexture; this.workstation.screen.material.needsUpdate = true; }
     this.workstation.screen.material.color.set(0xffffff);
-    this.screenTexture.needsUpdate = true; this.invalidate();
+    this.screenTexture.minFilter = NearestFilter; this.screenTexture.magFilter = NearestFilter; this.screenTexture.generateMipmaps = false; this.screenTexture.needsUpdate = true; this.invalidate();
   }
 
   resetMonitor(): void {
+    this.workstation.screenIdentity.visible = !this.debugOptions.flat && !this.debugOptions.silhouette;
     this.workstation.screen.material.map = null; this.workstation.screen.material.color.set(PALETTE.paper);
     this.workstation.screen.material.needsUpdate = true; this.invalidate();
   }
 
   camera(snapshot: CameraSnapshot): void {
-    if (snapshot.video) {
-      if (this.videoTexture?.image !== snapshot.video) { this.videoTexture?.dispose(); this.videoTexture = new VideoTexture(snapshot.video); this.videoTexture.colorSpace = SRGBColorSpace; }
-      this.workstation.video.material.map = this.videoTexture;
-      this.workstation.video.material.needsUpdate = true;
-      this.workstation.video.visible = true;
-      const aspect = snapshot.settings?.aspectRatio ?? (snapshot.video.videoWidth && snapshot.video.videoHeight ? snapshot.video.videoWidth / snapshot.video.videoHeight : 16 / 9);
-      const height = Math.min(3.5, 7.44 / aspect); const width = height * aspect;
-      this.workstation.video.scale.set(width / 2.4, height / 1.5, 1);
-    } else {
-      this.workstation.video.visible = false; this.workstation.video.material.map = null;
-      this.videoTexture?.dispose(); this.videoTexture = null;
-    }
-    this.workstation.cameraLens.visible = !snapshot.video;
     const failed = !['idle', 'live', 'requesting'].includes(snapshot.state);
     this.workstation.cameraStatus.setPoints(failed ? [new Vector3(-1.1, -2.42, 1), new Vector3(1.1, -2.42, 3.2)] : []);
     this.invalidate();
   }
 
+  controllerStyle(style: LegendStyle): void { this.legends.setStyle(style); this.invalidate(); }
+
+  private resolveDetail(delta: number): void {
+    for (const [id, bounds] of this.detailBounds) {
+      const visual = this.workstation.visuals.get(id)!;
+      // Bounds were authored in world space at rest; project their corners through the shared rig.
+      const corners: Vector3[] = [];
+      for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) corners.push(new Vector3(x, y, z + visual.position.z).project(this.cameraRig.camera));
+      const occupancy = Math.max((Math.max(...corners.map(p => p.x)) - Math.min(...corners.map(p => p.x))) / 2, (Math.max(...corners.map(p => p.y)) - Math.min(...corners.map(p => p.y))) / 2);
+      const selected = this.state?.mode === 'focus' && this.state.device === id && this.state.phase !== 'exiting';
+      const target = selected && !this.debugOptions.flat ? MathUtils.clamp((occupancy - (id === 'controller' || id === 'keyboard' ? 0.3 : 0.18)) / 0.18, 0, 1) : 0;
+      const previous = this.detailStrength.get(id) ?? 0;
+      let value = MathUtils.lerp(previous, target, Math.min(1, delta / 0.1)); if (Math.abs(value - target) < 0.005) value = target;
+      if (value !== previous) this.invalidate(); this.detailStrength.set(id, value);
+      const group = this.workstation.detailGroups.get(id); if (group) { group.visible = value > 0; group.traverse(object => { if (object instanceof Mesh && !Array.isArray(object.material)) { object.material.transparent = true; object.material.opacity = value; } }); }
+      // Neutral marks identify the illustrated controls even without hardware.
+      // Unknown mappings retain generic observations instead of implied labels.
+      if (id === 'controller') this.legends.detail(value);
+      if (id === 'keyboard') this.keys.detail(value);
+    }
+  }
+
   gamepad(snapshot: GamepadSnapshot | null): void {
+    this.legends.mapping(snapshot?.standard ?? null);
     for (const [index, button] of this.workstation.buttons) {
       const value = snapshot?.standard ? snapshot.buttons[index] ?? 0 : 0;
-      button.object.position.z = (index === 10 || index === 11 ? 5.25 : 5) - value * (index === 6 || index === 7 ? 0.8 : 0.18);
-      button.mesh.material = value > 0.1 ? this.materials.ink : this.materials.paper;
+      const trigger = index === 6 || index === 7;
+      const pressed = !!snapshot?.standard && (trigger ? value > 0.1 : snapshot.pressed[index] ?? false);
+      const travel = index === 8 || index === 9 || index === 16 ? .1 : .18;
+      button.object.position.z = this.workstation.buttonRest.get(index)!.z - (trigger ? value * 0.8 : pressed ? travel : 0);
+      const dark = index === 10 || index === 11;
+      this.legends.press(index, dark ? !pressed : pressed);
+      button.mesh.material = dark ? pressed ? this.materials.paper : this.materials.ink : pressed ? this.materials.ink : this.materials.paper;
     }
     this.workstation.sticks.forEach((stick, i) => {
       stick.position.x = (i === 0 ? -2.7 : 2.7) + (snapshot?.standard ? snapshot.axes[i * 2] ?? 0 : 0) * 0.7;
       stick.position.y = -1 - (snapshot?.standard ? snapshot.axes[i * 2 + 1] ?? 0 : 0) * 0.7;
     });
+    this.stickScopes.forEach((scope,i) => {
+      if (!snapshot?.standard || snapshot.axes.length < (i+1)*2) { scope.setPoints([]);return; }
+      // The gate is the diagnostic surface (Product §12.5 / Motion §13).
+      // World-space rings remain attached through lift/yaw and leave annotations
+      // free to grow with real button observations in adjacent negative space.
+      const visual=this.workstation.visuals.get('controller')!;
+      const cx=i===0?-2.7:2.7, radius=1.6;
+      const point=(dx:number,dy:number)=>visual.localToWorld(new Vector3(cx+dx,-1-dy,2.96));
+      const ring=Array.from({length:64},(_,j)=>point(Math.cos(j/64*Math.PI*2)*radius,Math.sin(j/64*Math.PI*2)*radius));
+      const points=ring.flatMap((p,j)=>[p,ring[(j+1)%ring.length]!]);
+      const dead=Array.from({length:32},(_,j)=>point(Math.cos(j/32*Math.PI*2)*radius*.1,Math.sin(j/32*Math.PI*2)*radius*.1));
+      points.push(...dead.flatMap((p,j)=>[p,dead[(j+1)%dead.length]!]));
+      points.push(point(0,0),point(snapshot.axes[i*2]!*radius,snapshot.axes[i*2+1]!*radius));
+      scope.setPoints(points);
+    });
     this.invalidate();
   }
 
   audio(snapshot: AudioSnapshot, nowMs: number): void {
-    const points: Vector3[] = [];
-    if (snapshot.microphone === 'live') {
-      const count = 64;
-      const driver = this.workstation.drivers[0]!;
-      for (let i = 0; i < count; i++) points.push(driver.localToWorld(new Vector3(i / (count - 1) * 14, (snapshot.waveform[Math.floor(i / count * snapshot.waveform.length)] ?? 0) * 8, 0.3)));
-    }
-    this.waveform.setPoints(points.flatMap((point, i) => i === 0 ? [] : [points[i - 1]!, point]));
     this.waves.forEach((wave, index) => {
       const side = index < 2 ? 0 : 1;
       if (!snapshot.output || this.reducedMotion || snapshot.channel === (side === 0 ? 'right' : 'left')) { wave.setPoints([]); return; }
@@ -335,9 +392,16 @@ export class SceneController {
       const driver = this.workstation.drivers[side]!;
       const ring = Array.from({ length: 32 }, (_, i) => driver.localToWorld(new Vector3(Math.cos(i / 32 * Math.PI * 2) * radius, Math.sin(i / 32 * Math.PI * 2) * radius, 0.3 + t * 4)));
       wave.setPoints(ring.flatMap((point, i) => [point, ring[(i + 1) % ring.length]!]));
-      wave.object.material.opacity = (1 - t) * 0.6 * snapshot.outputLevel; wave.object.material.transparent = true;
+      wave.object.material.opacity = (1 - t) * 0.7 * snapshot.outputLevel; wave.object.material.transparent = true;
     });
     this.invalidate();
+  }
+
+  microphone(snapshot: MicrophoneSnapshot): void {
+    const points: Vector3[] = [];
+    if (snapshot.state === 'live') for (let i = 0; i < 64; i++) points.push(this.workstation.micEffect.localToWorld(new Vector3(i / 63 * 21, 0, (snapshot.waveform[Math.floor(i / 64 * snapshot.waveform.length)] ?? 0) * 6)));
+    else if (!['idle', 'requesting'].includes(snapshot.state)) points.push(this.workstation.micEffect.localToWorld(new Vector3(0, 0, -1)), this.workstation.micEffect.localToWorld(new Vector3(2, 0, 1)));
+    this.waveform.setPoints(points.flatMap((point, i) => i === 0 ? [] : [points[i - 1]!, point])); this.invalidate();
   }
 
   anchor(id: DeviceId): { x: number; y: number; visible: boolean } {
@@ -347,11 +411,37 @@ export class SceneController {
     point.project(this.cameraRig.camera);
     return { x: (point.x + 1) / 2 * this.width, y: (1 - point.y) / 2 * this.height, visible: Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && point.z < 1 };
   }
+  screenBounds(): { left:number;top:number;right:number;bottom:number } {
+    const mesh=this.workstation.screen,positions=mesh.geometry.getAttribute('position');
+    const points=Array.from({length:positions.count},(_,i)=>mesh.localToWorld(new Vector3().fromBufferAttribute(positions,i)).project(this.cameraRig.camera));
+    return {left:Math.min(...points.map(p=>(p.x+1)/2*this.width)),right:Math.max(...points.map(p=>(p.x+1)/2*this.width)),top:Math.min(...points.map(p=>(1-p.y)/2*this.height)),bottom:Math.max(...points.map(p=>(1-p.y)/2*this.height))};
+  }
+  focusBounds(id: DeviceId): { right: number; bottom: number } {
+    const box = this.detailBounds.get(id)!; const lift = this.workstation.visuals.get(id)!.position.z;
+    const corners: Vector3[] = [];
+    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(new Vector3(x, y, z + lift).project(this.cameraRig.camera));
+    return { right: Math.max(...corners.map(p => (p.x + 1) / 2 * this.width)), bottom: Math.max(...corners.map(p => (1 - p.y) / 2 * this.height)) };
+  }
 
   render(): void {
     if (!this.dirty) return;
     this.worldRoot.updateMatrixWorld(true);
     this.workstation.update(this.cameraRig.camera);
+    if (this.debugOptions.flat) {
+      this.workstation.solids.forEach(solid => { solid.mesh.material = this.materials.white; });
+      this.workstation.screen.material.color.set(0xffffff);
+      this.keys.inspect(); this.workstation.cameraStatus.object.visible = false;
+      this.trail.object.visible = false; this.waveform.object.visible = false; this.waves.forEach(wave => { wave.object.visible = false; });
+      this.stickScopes.forEach(scope=>{scope.object.visible=false;});
+    }
+    if (this.debugOptions.silhouette) {
+      this.workstation.screenIdentity.visible = false;
+      this.legends.detail(0);
+      this.workstation.solids.forEach(solid => { solid.mesh.material = this.materials.ink; solid.silhouette.object.visible = false; solid.construction.object.visible = false; });
+      this.worldRoot.traverse(object => { if (object.name === 'ContactShadow' || object.name === 'FocusDetail') object.visible = false; });
+      this.trail.object.visible = false; this.waveform.object.visible = false; this.waves.forEach(wave => { wave.object.visible = false; }); this.workstation.cameraStatus.object.visible=false;
+      this.stickScopes.forEach(scope=>{scope.object.visible=false;});
+    }
     this.debug?.update();
     this.renderer.render(this.scene, this.cameraRig.camera);
     this.dirty = false;
@@ -361,7 +451,7 @@ export class SceneController {
     this.motion.cancel();
     this.workstation.dispose();
     this.keys.dispose(); this.trail.dispose();
-    this.waveform.dispose(); this.waves.forEach((wave) => wave.dispose()); this.screenTexture?.dispose(); this.videoTexture?.dispose();
+    this.waveform.dispose(); this.waves.forEach((wave) => wave.dispose()); this.stickScopes.forEach(scope=>scope.dispose()); this.screenTexture?.dispose(); this.legends.dispose();
     this.debug?.dispose();
     this.scene.clear();
     this.worldRoot.clear();

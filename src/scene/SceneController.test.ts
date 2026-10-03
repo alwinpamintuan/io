@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Vector3 } from 'three';
+import { Box3, Vector3 } from 'three';
 import { SceneStore } from '../app/state';
+import { DEVICE_IDS } from '../app/state';
 import { SceneController } from './SceneController';
 
 vi.mock('three', async (importOriginal) => {
@@ -13,13 +14,73 @@ vi.mock('three', async (importOriginal) => {
 afterEach(() => vi.unstubAllGlobals());
 function fixture(reduced = false) {
   vi.stubGlobal('window', { location: { hash: '', search: '' } });
-  vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ({ fillText() {} }) }) });
+  vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ({ fillText() {}, clearRect() {} }) }) });
   const scene = new SceneController({} as HTMLCanvasElement, reduced); const store = new SceneStore();
   const dispatch = store.dispatch.bind(store); store.subscribe((state) => scene.applyState(state, dispatch));
   scene.applyState(store.getState(), dispatch); scene.resize(1440, 900, 2);
   return { scene, store, dispatch };
 }
 describe('scene navigation integration', () => {
+  it('keeps flush button inversion visible and bounds wheel display without changing observations', () => {
+    const {scene}=fixture();
+    const snapshot={buttons:5,clickMs:null,wheel:{x:0,y:10000,mode:0,angle:150},trail:[]};
+    scene.pointer(snapshot);
+    const button=scene.workstation.mouseButtons[0]!;
+    expect(button.mesh.material).toBe(scene.materials.ink);
+    expect(button.object.position.z).toBeCloseTo(scene.workstation.mouseRest[0]!.z-.08);
+    expect(scene.workstation.mouseWheel.position.z).toBeCloseTo(2.77);
+    scene.update(.09);expect(scene.workstation.mouseWheel.rotation.x).toBeGreaterThan(.9);
+    expect(scene.workstation.mouseWheel.rotation.x).toBeLessThanOrEqual(Math.PI/3);
+    expect(snapshot.wheel.angle).toBe(150);scene.dispose();
+  });
+  it('separates reported digital pressed state from analog trigger travel without changing mapping for legends', () => {
+    const { scene } = fixture(); const buttons = Array(17).fill(0); buttons[0] = 0.42; buttons[6] = 0.42;
+    const snapshot = { id: 'Fixture', index: 0, standard: true, buttons, pressed: Array(17).fill(false), axes: [0.001, -0.003, 0, 0], timestamp: 1, haptics: false };
+    scene.gamepad(snapshot); expect(scene.workstation.buttons.get(0)!.mesh.material).toBe(scene.materials.paper);
+    expect(scene.workstation.buttons.get(6)!.object.position.z).toBeCloseTo(scene.workstation.buttonRest.get(6)!.z - 0.42 * 0.8);
+    const positions = scene.workstation.sticks.map(stick => stick.position.clone()); scene.controllerStyle('Xbox'); scene.gamepad(snapshot); expect(scene.workstation.sticks.map(stick => stick.position)).toEqual(positions);
+    snapshot.pressed[0] = true; scene.gamepad(snapshot); expect(scene.workstation.buttons.get(0)!.mesh.material).toBe(scene.materials.ink); scene.dispose();
+  });
+  it('shows neutral control identity without a connected pad and hides implied labels for unknown mappings', () => {
+    const { scene, dispatch } = fixture();
+    dispatch({ type: 'navigate', device: 'controller' }); scene.update(.7);
+    const legend = scene.workstation.buttons.get(0)!.object.getObjectByName('ControlLegend')!;
+    expect(legend.visible).toBe(true);
+    scene.gamepad({ id: 'Unknown', index: 0, standard: false, buttons: [1], pressed: [true], axes: [0], timestamp: 1, haptics: false });
+    scene.update(.2); expect(legend.visible).toBe(false);
+    scene.gamepad(null); scene.update(.2); expect(legend.visible).toBe(true);
+    scene.dispose();
+  });
+  it('keeps the small menu buttons and their marks above the controller crown when pressed', () => {
+    const { scene } = fixture(); const buttons = Array(17).fill(0), pressed = Array(17).fill(false);
+    for (const index of [8,9,16]) { buttons[index] = 1; pressed[index] = true; }
+    scene.gamepad({ id: 'Standard', index: 0, standard: true, buttons, pressed, axes: [0,0,0,0], timestamp: 1, haptics: false });
+    scene.worldRoot.updateMatrixWorld(true);
+    const shell = scene.workstation.solids.find(solid => solid.mesh.name === 'controller.shell')!;
+    const crown = new Box3().setFromObject(shell.mesh).max.z;
+    for (const index of [8,9,16]) expect(new Box3().setFromObject(scene.workstation.buttons.get(index)!.mesh).max.z).toBeGreaterThan(crown);
+    scene.dispose();
+  });
+  it('reattaches the persistent monitor texture after exit and keeps inspection fields untinted', () => {
+    const { scene, dispatch } = fixture(); const canvas = {} as HTMLCanvasElement;
+    scene.monitor(canvas); const texture = scene.workstation.screen.material.map;
+    expect(scene.workstation.screenIdentity.visible).toBe(false);
+    scene.resetMonitor(); expect(scene.workstation.screen.material.map).toBeNull();
+    expect(scene.workstation.screenIdentity.visible).toBe(true);
+    scene.monitor(canvas); expect(scene.workstation.screen.material.map).toBe(texture);
+    dispatch({ type: 'navigate', device: 'monitor' }); scene.update(0.7);
+    expect(scene.workstation.screen.material.color.getHex()).toBe(0xffffff); scene.dispose();
+  });
+  it.each(DEVICE_IDS)('activates %s within 700 ms while retaining canonical roots and resolves detail during travel', (device) => {
+    const { scene, store, dispatch } = fixture(); const roots = [...scene.deviceRoots.values()];
+    const positions = roots.map(root => root.position.clone());
+    dispatch({ type: 'navigate', device }); scene.update(0.45);
+    if (device === 'mouse' || device === 'microphone') expect(scene.workstation.detailGroups.get(device)!.visible).toBe(true);
+    if (device === 'controller') expect(scene.workstation.buttons.get(0)!.object.getObjectByName('ControlLegend')!.visible).toBe(true);
+    scene.update(0.25); expect(store.getState()).toMatchObject({ phase: 'active', device });
+    expect([...scene.deviceRoots.values()]).toEqual(roots); expect(roots.map(root => root.position)).toEqual(positions);
+    dispatch({ type: 'navigate', device: null }); scene.update(0.54); expect(store.getState().mode).toBe('overview'); scene.dispose();
+  });
   it('retargets interrupted entry and restores exact canonical transforms with persistent roots', () => {
     const { scene, store, dispatch } = fixture(); const roots = [...scene.deviceRoots.values()]; const overview = scene.cameraRig.snapshot();
     expect(scene.workstation.solids[0]!.silhouette.object.material.resolution.toArray()).toEqual([1440, 900]);
@@ -37,7 +98,7 @@ describe('scene navigation integration', () => {
     expect(scene.cameraRig.snapshot()).toEqual(scene.cameraRig.poseFor('monitor'));
     for (const [width, height] of [[1440, 900], [1280, 720], [700, 900]]) {
       scene.resize(width!, height!, 2); scene.worldRoot.updateMatrixWorld(true);
-      for (const [x, y] of [[-28.6, -15.6], [28.6, 15.6]]) {
+      for (const [x, y] of [[-26.075, -14.475], [26.075, 14.475]]) {
         const point = scene.workstation.screen.localToWorld(new Vector3(x, y, 0)).project(scene.cameraRig.camera);
         expect(Math.abs(point.x)).toBeLessThan(1); expect(Math.abs(point.y)).toBeLessThan(1);
       }

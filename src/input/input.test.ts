@@ -29,7 +29,19 @@ describe('browser-observed measurements', () => {
     adapter.enter(); browser.dispatchEvent(event('keydown', 'KeyA')); browser.dispatchEvent(event('keydown', 'KeyS'));
     expect(adapter.snapshot().held.size).toBe(2); expect(adapter.snapshot().tested.size).toBe(2);
     browser.dispatchEvent(new Event('blur')); expect(adapter.snapshot().held.size).toBe(0);
-    adapter.exit(); browser.dispatchEvent(event('keydown', 'KeyD')); expect(adapter.snapshot().tested.size).toBe(0);
+    adapter.exit(); browser.dispatchEvent(event('keydown', 'KeyD')); expect(adapter.snapshot().tested.size).toBe(2); adapter.enter(); expect(adapter.snapshot().tested.size).toBe(2); adapter.reset(); expect(adapter.snapshot().tested.size).toBe(0); adapter.exit();
     vi.unstubAllGlobals();
+  });
+  it('cancels delivered unmodified function keys only on the active surface and preserves progress until Reset', () => {
+    class Surface extends EventTarget { closest() { return null; } }
+    vi.stubGlobal('Element', Surface);
+    const surface = new Surface(); const browser = surface as unknown as Window;
+    const adapter = new KeyboardAdapter(browser, surface as unknown as HTMLElement);
+    const key = (code: string, modifiers = {}, cancelable = true) => Object.assign(new Event('keydown', { cancelable }), { code, key: code, location: 0, repeat: false, metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, ...modifiers });
+    adapter.enter(); const f5 = key('F5'); surface.dispatchEvent(f5); expect(f5.defaultPrevented).toBe(true);
+    for (const modifiers of [{ ctrlKey: true }, { altKey: true }, { shiftKey: true }, { metaKey: true }]) { const event = key('F5', modifiers); surface.dispatchEvent(event); expect(event.defaultPrevented).toBe(false); }
+    const reserved = key('F6', {}, false); surface.dispatchEvent(reserved); expect(reserved.defaultPrevented).toBe(false);
+    const button = key('F7'); Object.defineProperty(button, 'target', { value: { closest: () => true } }); surface.dispatchEvent(button); expect(adapter.snapshot().tested.has('F7')).toBe(false);
+    adapter.exit(); adapter.enter(); expect(adapter.snapshot().held.size).toBe(0); expect(adapter.snapshot().tested.has('F5')).toBe(true); adapter.reset(); expect(adapter.snapshot().tested.size).toBe(0); adapter.exit(); vi.unstubAllGlobals();
   });
 });

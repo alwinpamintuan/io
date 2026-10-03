@@ -4,6 +4,17 @@ import { CameraRig } from './CameraRig';
 import { EASING, MotionController, MOTION_DURATION } from './MotionController';
 
 describe('camera motion', () => {
+  it('opens perspective without an initial shrink and retains exact endpoints', () => {
+    const rig=new CameraRig(); const from=rig.snapshot();
+    const to={position:new Vector3(0,-64,41),target:new Vector3(0,0,41),fov:30,roll:0};
+    let previous=Infinity;
+    for(let i=0;i<=100;i++) {
+      rig.interpolate(from,to,i/100);const pose=rig.snapshot();
+      const extent=pose.position.distanceTo(pose.target)*Math.tan(pose.fov*Math.PI/360);
+      expect(extent).toBeLessThanOrEqual(previous);previous=extent;
+    }
+    expect(rig.snapshot()).toEqual(to);rig.interpolate(from,to,0);expect(rig.snapshot()).toEqual(from);
+  });
   it('uses elapsed time and restores the exact overview with the same camera', () => {
     const rig = new CameraRig();
     const camera = rig.camera;
