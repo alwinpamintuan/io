@@ -1,7 +1,8 @@
 import './style.css';
 import { detectCapabilities, observeReducedMotion } from './app/capabilities';
 import { RenderLoop } from './app/renderLoop';
-import { HashRouter, parseHash } from './app/router';
+import { AppRouter } from './app/router';
+import { connectSeo } from './seo/client';
 import { SceneStore } from './app/state';
 import type { DeviceId, SceneAction } from './app/state';
 import { SceneController } from './scene/SceneController';
@@ -10,6 +11,8 @@ import { DeviceInputManager } from './input/DeviceInputManager';
 import { OverlayManager } from './overlay/OverlayManager';
 import { createMotionDebug } from './app/debugPanel';
 import { startFallback } from './app/fallback';
+
+const router = new AppRouter(window);
 
 function startApplication(): () => void {
   const canvas = document.querySelector<HTMLCanvasElement>('#scene');
@@ -23,11 +26,10 @@ function startApplication(): () => void {
     if (!capabilities.webgl2Api || (import.meta.env.DEV && new URLSearchParams(location.search).has('debugFallback'))) throw new Error('WebGL2 unavailable');
     scene = new SceneController(canvas, forceReducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   } catch {
-    return startFallback(canvas, status);
+    return startFallback(canvas, status, router);
   }
 
   const store = new SceneStore();
-  const router = new HashRouter(window);
   const dispatch = (action: SceneAction): void => store.dispatch(action);
   const overlay = new OverlayManager(document.querySelector<HTMLElement>('#app')!, scene);
   const inputs = new DeviceInputManager(canvas, scene, overlay);
@@ -90,7 +92,10 @@ function startApplication(): () => void {
   resize();
 
   const stopMotionPreference = observeReducedMotion((reduced) => scene.setReducedMotion(forceReducedMotion || reduced, dispatch));
-  const unsubscribeRoute = router.subscribe((device) => dispatch({ type: 'navigate', device }));
+  const unsubscribeRoute = router.subscribe((device, page) => {
+    inputs.setMonitorEntryMode(page.slug === 'refresh-rate-test' ? 'timing' : 'white');
+    dispatch({ type: 'navigate', device });
+  });
   const debugPanel = import.meta.env.DEV && new URLSearchParams(location.search).has('debugMotion') ? createMotionDebug(scene, inputs, store) : null;
   const loop = new RenderLoop(({ deltaSeconds, nowMs }) => {
     inputs.poll(nowMs, deltaSeconds);
@@ -141,24 +146,6 @@ function startApplication(): () => void {
   return dispose;
 }
 
-function updateHeader(): void {
-  const route = parseHash(location.hash);
-  document.querySelector('#view-label')!.textContent = route === 'camera' ? 'webcam' : route === 'audio' ? 'speaker' : route ?? 'overview';
-  document.querySelector<HTMLElement>('.overview-link')!.hidden = route === null;
-}
-updateHeader();
-window.addEventListener('hashchange', updateHeader);
-const guide = document.querySelector<HTMLElement>('.test-guide');
-const returnToWorkstation = (event: MouseEvent): void => {
-  if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-  if (event.target instanceof Element && event.target.closest('a[href^="#"]')) {
-    document.querySelector('#app')?.scrollIntoView({ block: 'start', behavior: 'instant' });
-  }
-};
-guide?.addEventListener('click', returnToWorkstation);
+const disconnectSeo = connectSeo(router);
 const dispose = startApplication();
-if (import.meta.hot) import.meta.hot.dispose(() => {
-  dispose();
-  window.removeEventListener('hashchange', updateHeader);
-  guide?.removeEventListener('click', returnToWorkstation);
-});
+if (import.meta.hot) import.meta.hot.dispose(() => { dispose(); disconnectSeo(); });

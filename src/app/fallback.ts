@@ -1,12 +1,12 @@
 import { DEVICE_IDS, SceneStore } from './state';
-import { HashRouter } from './router';
+import type { AppRouter } from './router';
 import { RenderLoop } from './renderLoop';
 import { DeviceInputManager } from '../input/DeviceInputManager';
 import type { DeviceScene } from '../input/DeviceInputManager';
 import { OverlayManager } from '../overlay/OverlayManager';
 
 /** Semantic tester fallback uses the same adapters, permissions, clock and routes. */
-export function startFallback(original: HTMLCanvasElement, status: HTMLParagraphElement): () => void {
+export function startFallback(original: HTMLCanvasElement, status: HTMLParagraphElement, router: AppRouter): () => void {
   const canvas = document.createElement('canvas'); canvas.id = 'scene'; canvas.setAttribute('role', 'img'); canvas.ariaLabel = 'Device test surface';
   original.replaceWith(canvas); const app = document.querySelector<HTMLElement>('#app')!;
   const ctx = canvas.getContext('2d');
@@ -30,7 +30,7 @@ export function startFallback(original: HTMLCanvasElement, status: HTMLParagraph
     invalidate() {}, anchor() { return { x: canvas.width * 0.3, y: canvas.height * 0.65, visible: true }; },
   };
   const overlay = new OverlayManager(app, scene); const inputs = new DeviceInputManager(canvas, scene, overlay);
-  const router = new HashRouter(window); const store = new SceneStore();
+  const store = new SceneStore();
   const nav = document.createElement('nav'); nav.className = 'fallback-navigation'; nav.ariaLabel = 'Peripheral tests';
   const buttons = DEVICE_IDS.map((id) => {
     const button = document.createElement('button'); button.textContent = id === 'camera' ? 'Webcam' : id; button.type = 'button'; button.ariaLabel = `Test ${id}`;
@@ -43,7 +43,10 @@ export function startFallback(original: HTMLCanvasElement, status: HTMLParagraph
     inputs.setState(state); if (state.mode === 'overview') clear();
     buttons.forEach(({ id, button }) => button.setAttribute('aria-pressed', String(state.mode === 'focus' && state.device === id)));
   });
-  const unsubscribeRoute = router.subscribe((device) => store.dispatch({ type: 'navigate', device }));
+  const unsubscribeRoute = router.subscribe((device, page) => {
+    inputs.setMonitorEntryMode(page.slug === 'refresh-rate-test' ? 'timing' : 'white');
+    store.dispatch({ type: 'navigate', device });
+  });
   const resize = (): void => {
     nav.style.top=`${status.offsetTop+status.offsetHeight+24}px`;
     canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;

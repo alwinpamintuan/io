@@ -8,7 +8,11 @@
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; }
 body { margin: 0; }
-.test-guide { max-width: 76ch; margin: 0 auto; padding: 48px 28px 64px; font-size: 13px; line-height: 1.7; }
+.site-info { position: absolute; top: 28px; right: 28px; z-index: 10; font-size: 11px; }
+.site-info[open] { width: min(76ch, calc(100% - 56px)); }
+.site-info summary { width: max-content; margin-left: auto; padding: 12px 0 12px 12px; color: #5d5d58; cursor: pointer; }
+.site-info summary:focus-visible { outline: 2px solid #111111; outline-offset: 4px; }
+.test-guide { max-height: calc(100dvh - 120px); overflow-y: auto; margin-top: 12px; padding: 20px 24px; background: #f3f2ec; border: 1px solid #dddcd5; font-size: 13px; line-height: 1.7; }
 .test-guide h1, .test-guide h2 { font-size: 16px; font-weight: 500; line-height: 1.5; }
 .test-guide h2 { margin-top: 32px; }
 .test-guide p, .test-guide dd { color: #5d5d58; }

@@ -4,6 +4,7 @@ import type { OverlayManager } from '../overlay/OverlayManager';
 import { KeyboardAdapter } from './KeyboardAdapter';
 import { PointerAdapter } from './PointerAdapter';
 import { MonitorAdapter } from './MonitorAdapter';
+import type { MonitorMode } from './MonitorAdapter';
 import { CameraAdapter } from './CameraAdapter';
 import { GamepadAdapter } from './GamepadAdapter';
 import { AudioAdapter } from './AudioAdapter';
@@ -31,6 +32,7 @@ export class DeviceInputManager {
   readonly microphone = new MicrophoneAdapter();
   private mediaSelect: HTMLSelectElement | null = null;
   private active: DeviceId | null = null;
+  private monitorEntryMode: MonitorMode = 'white';
   private presented: DeviceId | null = null;
   private lastMetrics = 0;
   private lastAnnouncement = 0;
@@ -57,6 +59,11 @@ export class DeviceInputManager {
     window.addEventListener('blur', this.blur);
   }
   get activeDevice(): DeviceId | null { return this.active; }
+  setMonitorEntryMode(mode: MonitorMode): void {
+    if (this.monitorEntryMode === mode) return;
+    this.monitorEntryMode = mode;
+    if (this.active === 'monitor') this.monitor.setMode(mode);
+  }
   setState(state: SceneState): void {
     this.state = state;
     const next = !document.hidden && state.mode === 'focus' && state.phase === 'active' ? state.device : null;
@@ -68,7 +75,7 @@ export class DeviceInputManager {
         switch(next) {
           case 'keyboard':this.keyboard.enter();break;
           case 'mouse':this.pointer.enter();break;
-          case 'monitor':this.monitor.enter(this.canvas);break;
+          case 'monitor':this.monitor.enter(this.canvas);this.monitor.setMode(this.monitorEntryMode);break;
           case 'camera':this.camera.enter();break;
           case 'controller':this.controller.enter();break;
           case 'audio':this.audio.enter();break;

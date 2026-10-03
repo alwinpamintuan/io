@@ -6,9 +6,9 @@ IO is a static, client-side space for testing devices. The illustrated workstati
 
 - Support keyboard, mouse, monitor, webcam, controller, audio output, and microphone as distinct testers.
 - Keep overview calm. Focus reveals the selected device's controls and observations without replacing its scene object.
-- Preserve hash deep links, browser Back/Forward, interruption during transitions, and an exact return to the resting workstation.
+- Preserve legacy hash deep links, real static tester entry routes, browser Back/Forward, interruption during transitions, and an exact return to the resting workstation. In-app route navigation retains one shared scene and session state; refresh-rate entry uses the existing monitor timing tester.
 - Make selection and controls accessible through semantic HTML, visible focus, descriptive labels, and keyboard operation. Expose device navigation on narrow screens and in the WebGL fallback.
-- Keep a readable, semantic tester guide below the workstation in the initial HTML. Search and sharing metadata describe the single canonical page; hash tester views remain in-page navigation. Keep the guide's device capabilities and privacy claims aligned with actual behavior.
+- Preserve the minimal workstation by keeping tester descriptions and privacy information in a collapsed Info disclosure. Generate each entry page's semantic guide, unique metadata, self-referencing canonical and ordinary related-test links from one shared SEO configuration. Keep the guide in the initial HTML and usable with keyboard navigation. Hashes are compatibility links, not canonical search pages. Keep capabilities and privacy claims aligned with actual behavior; do not add analytics or thin guide pages for search traffic.
 - Escape remains testable keyboard input. Use explicit home navigation; native fullscreen exit retains its browser behavior.
 - Keyboard tested-key progress lasts for the page session, across focus changes, until Reset. Reserved browser or operating-system shortcuts cannot be guaranteed.
 - Controller display legends are presentation preferences. Standard mapping determines physical controls; unknown mappings use indexed diagnostics without implying a standard layout.
@@ -47,6 +47,7 @@ Prioritize coherent projection, silhouette, occlusion, grounding, line hierarchy
 - Cap pixel ratio and skip idle redraws. Keep scene resources reusable and cleanup symmetric, including listeners, tracks, audio, pending requests, and context recovery.
 - Feature-detect browser APIs and provide usable fallback controls when rendering or a device capability is unavailable.
 - Keep authored mesh source and baked assets together; regenerate assets with `node scripts/author-devices.mjs` when control points change. Run `npm test`, `npm run typecheck`, and `npm run build` for application changes. Tests protect behavior and geometry invariants, not incidental screenshots or implementation details.
+- Keep automated coverage focused on app behavior: device lifecycles, navigation, session continuity, rendering invariants and fallback controls. Group related input cases into behavior scenarios. Do not add unit assertions for authored SEO copy, metadata formatting, sitemap entries or social-image dimensions.
 
 ## Privacy and measurement honesty
 

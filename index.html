@@ -5,31 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f4f4f0" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 24'%3E%3Cpath d='M4 3v18' fill='none' stroke='%230a0a0a' stroke-width='2'/%3E%3Ccircle cx='21' cy='12' r='9' fill='none' stroke='%230a0a0a' stroke-width='2'/%3E%3C/svg%3E" />
-    <title>IO — Online Keyboard, Mouse &amp; Peripheral Tester</title>
-    <meta name="description" content="Test your keyboard, mouse, monitor, webcam, controller, speakers and microphone online with IO. Device observations stay in your browser, with no uploads." />
-    <link rel="canonical" href="https://alwinpamintuan.github.io/io/" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="IO" />
-    <meta property="og:title" content="IO — Online Keyboard, Mouse &amp; Peripheral Tester" />
-    <meta property="og:description" content="Test seven devices in your browser: keyboard, mouse, monitor, webcam, controller, speakers and microphone. No uploads or recordings." />
-    <meta property="og:url" content="https://alwinpamintuan.github.io/io/" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="IO — Online Keyboard, Mouse &amp; Peripheral Tester" />
-    <meta name="twitter:description" content="Test seven devices in your browser: keyboard, mouse, monitor, webcam, controller, speakers and microphone. No uploads or recordings." />
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "IO",
-        "url": "https://alwinpamintuan.github.io/io/",
-        "description": "A browser-based tester for keyboards, mice, monitors, webcams, controllers, speakers and microphones. Device observations stay in page memory without uploads or recordings.",
-        "applicationCategory": "UtilitiesApplication",
-        "operatingSystem": "Any operating system with a compatible web browser",
-        "browserRequirements": "JavaScript enabled. Camera and microphone testing require HTTPS and explicit permission.",
-        "isAccessibleForFree": true,
-        "featureList": ["Keyboard test", "Mouse test", "Monitor test patterns", "Webcam preview", "Controller test", "Speaker channel test", "Microphone waveform"]
-      }
-    </script>
+    <!-- io:metadata:start --><!-- io:metadata:end -->
   </head>
   <body>
     <main id="app" aria-label="IO workstation">
@@ -42,33 +18,14 @@
         </svg>
       </span>
       <span id="view-label">overview</span>
-      <a class="overview-link" href="#" aria-label="Return to workstation overview" hidden>←</a>
+      <a class="overview-link" data-io-route href="./" aria-label="Return to workstation overview" hidden>←</a>
       </header>
       <p id="status" class="sr-only" role="status" aria-live="polite"></p>
+      <details class="site-info">
+        <summary>Info</summary>
+        <section class="test-guide" aria-labelledby="test-guide-title"><!-- io:guide:start --><!-- io:guide:end --></section>
+      </details>
     </main>
-    <section class="test-guide" aria-labelledby="test-guide-title">
-      <h1 id="test-guide-title">Online keyboard, mouse and peripheral tester</h1>
-      <p>IO is a free browser-based space for checking your devices. Select a device in the workstation above or choose a test below. Use the overview arrow to return and select another device.</p>
-      <dl>
-        <dt><a href="#keyboard">Keyboard test</a></dt>
-        <dd>Check held and tested keys, key combinations, and repeat timing. Reset tested-key progress whenever you need; browser and operating-system shortcuts may remain reserved.</dd>
-        <dt><a href="#mouse">Mouse test</a></dt>
-        <dd>Check mouse buttons, wheel direction, movement and click intervals. Event frequency reflects browser delivery, not the hardware polling rate.</dd>
-        <dt><a href="#monitor">Monitor test</a></dt>
-        <dd>Inspect your display with 16 patterns, including black and white steps, color ramps, grids and alternating pixels. Use fullscreen for inspection; browser repaint timing does not measure panel response time.</dd>
-        <dt><a href="#camera">Webcam test</a></dt>
-        <dd>Start a local webcam preview, choose whether to mirror it, and inspect reported track settings. Camera permission is requested only when you select Start.</dd>
-        <dt><a href="#controller">Controller and gamepad test</a></dt>
-        <dd>Inspect connected controller buttons and stick axes. Choose Neutral, Xbox or PlayStation display legends; unsupported mappings use indexed controls.</dd>
-        <dt><a href="#audio">Speaker and audio test</a></dt>
-        <dd>Play short test tones through the left, right or both output channels. These tones help you listen for output; IO does not measure sound or speaker quality.</dd>
-        <dt><a href="#microphone">Microphone test</a></dt>
-        <dd>Start a local waveform and digital amplitude display to check microphone input. Input is never played through speakers, and digital amplitude is not calibrated sound pressure.</dd>
-      </dl>
-      <h2>Private device checks in your browser</h2>
-      <p>IO has no analytics, uploads or recordings. Observations stay in page memory. Camera and microphone tests need your permission and a secure connection; Stop or leaving a test releases capture. Available features depend on your browser and connected devices.</p>
-      <noscript><p>The interactive tests require JavaScript. Enable JavaScript and reload this page to use the workstation.</p></noscript>
-    </section>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
