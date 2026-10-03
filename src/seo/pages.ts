@@ -16,7 +16,7 @@ export interface SeoPage {
 export const SEO_PAGES: readonly SeoPage[] = [
   {
     slug: '', device: null,
-    title: 'IO — Minimal Online Peripheral Tester', h1: 'Online Peripheral Tester',
+    title: 'IO — Online Keyboard, Mouse & Peripheral Tester', h1: 'Online Peripheral Tester',
     description: 'Test keyboards, mice, controllers, webcams, microphones, speakers and monitors with IO, a minimal browser-based peripheral tester with no uploads.',
     intro: 'IO is a free browser-based space for checking PC peripherals. Choose a device in the illustrated workstation to open its test, or follow a test link below. One shared workstation holds the keyboard, mouse, monitor, webcam, controller, speakers and microphone. The overview arrow returns you to the desk without restarting the application.',
     sections: [
