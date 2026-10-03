@@ -1,0 +1,12 @@
+{
+  "maximum_mean_error": 0.005,
+  "maximum_changed_fraction": 0.01,
+  "cases": [
+    { "file": "overview-1440x900.png", "route": "/", "viewport": [1440, 900] },
+    { "file": "keyboard-1440x900.png", "route": "/#keyboard", "viewport": [1440, 900], "masks": [[1100, 680, 1439, 899]] },
+    { "file": "mouse-1440x900.png", "route": "/#mouse", "viewport": [1440, 900], "masks": [[950, 540, 1439, 760]] },
+    { "file": "monitor-1440x900.png", "route": "/#monitor", "pattern": "grid", "viewport": [1440, 900], "masks": [[870, 770, 1250, 899]] },
+    { "file": "overview-1280x720.png", "route": "/", "viewport": [1280, 720] },
+    { "file": "reduced-overview-1440x900.png", "route": "/?debugReducedMotion", "viewport": [1440, 900] }
+  ]
+}
