@@ -19,9 +19,6 @@ body { margin: 0; }
 @media (forced-colors: active) { #scene, #scene.device-hover, #scene.pointer-pressed { cursor: auto; } }
 
 .io-mark {
-  position: absolute;
-  top: 28px;
-  left: 28px;
   display: grid;
   place-items: center;
   width: 44px;
@@ -29,7 +26,10 @@ body { margin: 0; }
   color: inherit;
 }
 .io-mark svg { width: 32px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; }
-.io-mark:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.view-header { position:absolute; top:28px; left:28px; display:flex; align-items:center; gap:16px; }
+#view-label { font-size:11px; color:#5d5d58; }
+.overview-link { display:grid; place-items:center; width:44px; height:44px; margin-left:8px; color:inherit; text-decoration:none; font-size:22px; }
+.overview-link:focus-visible { outline:2px solid currentColor; outline-offset:4px; }
 .sr-only {
   position: absolute;
   width: 1px;
@@ -95,7 +95,7 @@ body { margin: 0; }
 .fallback-video { position: absolute; top: 24%; left: 15%; width: 70%; height: 38%; object-fit: contain; }
 .test-controls button:disabled { opacity: 0.45; cursor: default; }
 @media (max-width: 700px) {
-  .io-mark { top: 16px; left: 16px; }
+  .view-header { top: 16px; left: 16px; }
   .instrument { font-size: 11px; }
   .device-navigation { inset: auto 16px 20px; display: flex; flex-wrap: wrap; gap: 8px; }
 .device-navigation button { position: static; clip-path: none; width: auto; height: auto; padding: 8px; background: #f3f2ec; border: 1px solid #5d5d58; text-transform: capitalize; }
@@ -147,6 +147,22 @@ body { margin: 0; }
 
 .camera-preview:not([data-state=live]) .preview-status {color:#5d5d58;}
 .drafting-marks {position:absolute;inset:104px 28px 28px;pointer-events:none;opacity:.28;}
+.overview-field {position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:hidden;fill:none;stroke:#73736b;stroke-width:.7;}
+.overview-construction {opacity:.28;}
+.overview-grid {opacity:.10;}
+.overview-radial, .overview-device-field {opacity:.10;transition:opacity 160ms ease-out;}
+.overview-radial.is-active, .overview-device-field.is-active {opacity:.52;}
+.overview-optical {opacity:.52;stroke-width:.7;}
+.overview-callout {stroke:#67675f;stroke-width:.8;opacity:.65;}
+.overview-leader {stroke-dasharray:1;stroke-dashoffset:0;animation:overview-line 160ms ease-out;}
+.overview-hover-bridge {stroke:transparent;stroke-width:18;pointer-events:stroke;}
+.overview-label {position:absolute;width:100px;height:36px;appearance:none;border:0;background:transparent;text-align:left;color:#67675f;font:11px ui-monospace,monospace;cursor:pointer;padding:8px;animation:overview-label 140ms ease-out;}
+.overview-label:focus-visible {outline:1px solid currentColor;outline-offset:2px;}
+@keyframes overview-line {from {stroke-dashoffset:1;}}
+@keyframes overview-label {from {opacity:0;transform:translateY(4px);} to {opacity:1;transform:translateY(0);}}
+@media (prefers-reduced-motion:reduce) {.overview-leader,.overview-label {animation:none;} .overview-radial,.overview-device-field {transition:none;}}
+.overview-callout text {fill:#67675f;stroke:none;font-size:10px;font-family:inherit;}
+.overview-callout circle {fill:#77776f;stroke:none;}
 .registration {position:absolute;width:10px;height:10px;border-color:#5d5d58;pointer-events:none;}
 .corner-0 {left:0;top:0;border-left:1px solid;border-top:1px solid;}
 .corner-1 {right:0;top:0;border-right:1px solid;border-top:1px solid;}

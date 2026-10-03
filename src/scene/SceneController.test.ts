@@ -21,6 +21,49 @@ function fixture(reduced = false) {
   return { scene, store, dispatch };
 }
 describe('scene navigation integration', () => {
+  it('projects resting hardware bounds for responsive overview fields and reports omitted devices', () => {
+    const { scene } = fixture();
+    for (const width of [1440, 700, 390]) {
+      scene.resize(width, 900, 1);
+      for (const id of DEVICE_IDS) {
+        const bounds = scene.overviewBounds(id);
+        expect(bounds.visible).toBe(true);
+        expect(bounds.right).toBeGreaterThan(bounds.left);
+        expect(bounds.bottom).toBeGreaterThan(bounds.top);
+        expect(bounds.left).toBeGreaterThanOrEqual(0);
+        expect(bounds.right).toBeLessThanOrEqual(width);
+        expect(bounds.top).toBeGreaterThanOrEqual(0);
+        expect(bounds.bottom).toBeLessThanOrEqual(900);
+      }
+      const monitor = scene.overviewBounds('monitor'), screen = scene.screenBounds();
+      expect(screen.left).toBeGreaterThanOrEqual(monitor.left);
+      expect(screen.right).toBeLessThanOrEqual(monitor.right);
+    }
+    scene.setDeviceVisibility(['camera', 'controller']);
+    expect(scene.overviewBounds('camera').visible).toBe(false);
+    expect(scene.overviewBounds('controller').visible).toBe(false);
+    expect(scene.overviewBounds('monitor').visible).toBe(true);
+    scene.dispose();
+  });
+  it('keeps stereo origins visible and channel feedback present with reduced motion', () => {
+    const { scene, dispatch } = fixture(true);
+    dispatch({ type: 'navigate', device: 'audio' }); scene.update(.7);
+    for (const width of [1440, 700]) {
+      scene.resize(width, 900, 1);
+      for (const driver of scene.workstation.drivers) {
+        const origin = driver.getWorldPosition(new Vector3()).project(scene.cameraRig.camera);
+        expect(Math.abs(origin.x)).toBeLessThan(1);
+        expect(Math.abs(origin.y)).toBeLessThan(1);
+      }
+      scene.audio({ output: true, channel: 'right', outputLevel: 1, error: null }, 100);
+      const waves = (scene as unknown as { waves: { object: { geometry: { instanceCount: number } } }[] }).waves;
+      expect(waves.slice(0, 2).every(w => w.object.geometry.instanceCount === 0)).toBe(true);
+      expect(waves.slice(2).every(w => w.object.geometry.instanceCount > 0)).toBe(true);
+      scene.audio({ output: false, channel: 'right', outputLevel: 0, error: null }, 200);
+      expect(waves.every(w => w.object.geometry.instanceCount === 0)).toBe(true);
+    }
+    scene.dispose();
+  });
   it('reframes reduced layouts, omits hit targets, and restores optional testers without moving roots', () => {
     const { scene, dispatch } = fixture();
     const roots = [...scene.deviceRoots.values()], positions = roots.map(r => r.position.clone());

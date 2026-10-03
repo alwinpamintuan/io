@@ -232,7 +232,7 @@ stick offset ${Math.hypot(value.axes[0]!, value.axes[1]!).toFixed(3)} / ${Math.h
       this.overlay.setMessage(this.controller.error ? ERROR_TEXT[this.controller.error] : !value ? 'Connect a controller and press a button to make it visible to the browser.' : !value.standard ? 'Generic indexed mapping. Physical button locations are unknown.' : '', !!this.controller.error || !!value && !value.standard);
     } else if (this.active === 'audio') {
       const value = this.audio.snapshot();
-      output.textContent = value.output ? 'Playback initiated' : 'Ready to test output';
+      output.textContent = value.output ? `${value.channel === 'both' ? 'LR' : value.channel === 'left' ? 'L' : 'R'} · Playback initiated` : 'Ready to test output';
       this.overlay.setMessage(value.error ? ERROR_TEXT[value.error] : 'One-second tones at a conservative level. Inspect audibility and channels by listening.', !!value.error);
     } else if (this.active === 'microphone') {
       const value = this.microphone.snapshot(); this.updateMediaInputs(this.microphone.inputs);

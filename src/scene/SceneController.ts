@@ -242,6 +242,15 @@ export class SceneController {
     this.resolveDetail(deltaSeconds);
     this.presentFields();
     if (this.state?.mode === 'overview') {
+      this.workstation.screenIdentity.children.forEach((object, index) => {
+        if (!(object instanceof Mesh) || Array.isArray(object.material)) return;
+        const base = index === 0 ? .38 : .65;
+        const target = this.hovered === 'monitor' ? base + .14 : base;
+        const old = object.material.opacity;
+        object.material.opacity = this.reducedMotion ? target : MathUtils.lerp(old, target, Math.min(1, deltaSeconds / .1));
+        if (Math.abs(object.material.opacity - target) < .001) object.material.opacity = target;
+        if (object.material.opacity !== old) this.invalidate();
+      });
       for (const [id, visual] of this.workstation.visuals) {
         const desired = !this.reducedMotion && id === this.hovered && id !== 'monitor' && id !== 'camera' ? 0.45 : 0;
         const next = MathUtils.lerp(visual.position.z, desired, Math.min(1, deltaSeconds * 24));
@@ -313,6 +322,12 @@ export class SceneController {
     this.worldRoot.updateMatrixWorld(true);
     for (const [id, root] of this.deviceRoots) {
       const target = root.getObjectByName('cameraFocus')!.getWorldPosition(new Vector3());
+      // Stereo testing needs both physical origins and their surrounding wave field.
+      if (id === 'audio') {
+        target.copy(this.workstation.drivers[0]!.getWorldPosition(new Vector3()))
+          .add(this.workstation.drivers[1]!.getWorldPosition(new Vector3())).multiplyScalar(.5);
+        target.z += 3 - this.workstation.visuals.get('audio')!.position.z;
+      }
       if (id !== 'monitor' && id !== 'camera') target.z += FOCUS_LIFT[id];
       this.cameraRig.registerFocusPose(id, focusPose(id, target, this.width / this.height));
     }
@@ -325,7 +340,15 @@ export class SceneController {
     return this.raycaster.intersectObjects(this.workstation.hitTargets.filter(mesh => !this.hiddenDevices.has(mesh.userData.device)), false)[0]?.object.userData.device ?? null;
   }
 
-  hover(id: DeviceId | null): void { this.hovered = id; this.invalidate(); }
+  hover(id: DeviceId | null): void {
+    if (this.state?.mode !== 'overview' || this.hovered === id) return;
+    this.hovered = id;
+    this.contrast(null, 0);
+    if (!this.debugOptions.flat && !this.debugOptions.silhouette && id) {
+      for (const entry of this.contrastMaterials.get(id) ?? []) entry.material.color.copy(entry.color).multiplyScalar(.94);
+    }
+    this.invalidate();
+  }
 
   keyboard(snapshot: KeyboardSnapshot): void { this.keys.update(snapshot); this.invalidate(); }
 
@@ -460,16 +483,18 @@ export class SceneController {
   audio(snapshot: AudioSnapshot, nowMs: number): void {
     this.waves.forEach((wave, index) => {
       const side = index < 2 ? 0 : 1;
-      if (!snapshot.output || this.reducedMotion || snapshot.channel === (side === 0 ? 'right' : 'left')) { wave.setPoints([]); return; }
-      const t = ((nowMs / 700 + index / 2) % 1); const radius = 3.5 + t * 16;
+      if (!snapshot.output || snapshot.channel === (side === 0 ? 'right' : 'left')) { wave.setPoints([]); return; }
+      const t = this.reducedMotion ? .2 + (index % 2) * .4 : ((nowMs / 700 + index / 2) % 1);
+      const radius = 3.5 + t * 16;
       const driver = this.workstation.drivers[side]!;
       const ring = Array.from({ length: 33 }, (_, i) => {
         const angle = (i / 32 - .5) * Math.PI * .72;
-        return driver.localToWorld(new Vector3(Math.cos(angle) * radius * (side === 0 ? 1 : -1), Math.sin(angle) * radius, .3));
+        return driver.localToWorld(new Vector3(Math.cos(angle) * radius * (side === 0 ? -1 : 1), Math.sin(angle) * radius, .3));
       });
       wave.setPoints(ring.flatMap((point, i) => i === 0 ? [] : [ring[i - 1]!, point]));
       // This is initiated playback geometry, not measured acoustic amplitude.
-      wave.object.material.opacity = (1 - t) * .45; wave.object.material.transparent = true;
+      wave.object.material.opacity = (1 - t) * .55; wave.object.material.transparent = true;
+      wave.object.material.alphaToCoverage = false;
     });
     this.invalidate();
   }
@@ -488,6 +513,21 @@ export class SceneController {
     point.project(this.cameraRig.camera);
     return { x: (point.x + 1) / 2 * this.width, y: (1 - point.y) / 2 * this.height, visible: Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && point.z < 1 };
   }
+  overviewBounds(id: DeviceId): { left: number; top: number; right: number; bottom: number; visible: boolean } {
+    const box = this.detailBounds.get(id)!;
+    const corners: Vector3[] = [];
+    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+      corners.push(new Vector3(x, y, z).project(this.cameraRig.camera));
+    }
+    return {
+      left: Math.min(...corners.map(p => (p.x + 1) / 2 * this.width)),
+      right: Math.max(...corners.map(p => (p.x + 1) / 2 * this.width)),
+      top: Math.min(...corners.map(p => (1 - p.y) / 2 * this.height)),
+      bottom: Math.max(...corners.map(p => (1 - p.y) / 2 * this.height)),
+      visible: this.deviceRoots.get(id)!.visible && corners.some(p => Math.abs(p.x) < 1 && Math.abs(p.y) < 1 && p.z < 1),
+    };
+  }
+
   screenBounds(): { left:number;top:number;right:number;bottom:number } {
     const mesh=this.workstation.screen,positions=mesh.geometry.getAttribute('position');
     const points=Array.from({length:positions.count},(_,i)=>mesh.localToWorld(new Vector3().fromBufferAttribute(positions,i)).project(this.cameraRig.camera));

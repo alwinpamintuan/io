@@ -17,7 +17,7 @@ export function focusPose(id: DeviceId, target: Vector3, aspect: number): Camera
   const offsets: Record<DeviceId, Vector3> = {
     keyboard: new Vector3(0, -20, 58), mouse: new Vector3(-9, -23, 24),
     monitor: new Vector3(0, -64, 0), camera: new Vector3(0, -34, 3),
-    controller: new Vector3(-6, -22, 32), audio: new Vector3(-2, -42, 6), microphone: new Vector3(-2, -31, 13),
+    controller: new Vector3(-6, -22, 32), audio: new Vector3(-2, -145, 25), microphone: new Vector3(-2, -31, 13),
   };
   const fov = id === 'keyboard' ? 27 : id === 'camera' ? 31 : 30;
   const offset = offsets[id].clone();
@@ -27,7 +27,6 @@ export function focusPose(id: DeviceId, target: Vector3, aspect: number): Camera
   if (aspect >= 1.2) {
     if (id === 'mouse') { framing.x += 5; }
     if (id === 'controller') { framing.x += 4; }
-    if (id === 'audio') framing.x += 9;
     if (id === 'microphone') framing.x += 5;
     if (id === 'camera') framing.x += 7;
   }

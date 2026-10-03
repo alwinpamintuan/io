@@ -65,6 +65,30 @@ fs.mkdirSync(output, { recursive: true });
           check(`${context}: unplayed channel has no waves`,await page.evaluate(()=>ioInspection.scene.waves.slice(2).every(w=>w.object.geometry.instanceCount===0)));
           await page.getByRole('button',{name:'Stop tone',exact:true}).click();
           check(`${context}: stopped tone clears waves`,await page.evaluate(()=>ioInspection.scene.waves.every(w=>w.object.geometry.instanceCount===0)));
+          for (const motion of ['no-preference', 'reduce']) {
+            await page.emulateMedia({ reducedMotion: motion });
+            for (const width of [1440, 700]) {
+              await page.setViewportSize({width,height:900});await page.waitForTimeout(200);
+              for (const channel of ['left','right','both']) {
+                await page.getByRole('button',{name:`Play one-second ${channel} channel tone`,exact:true}).click();await page.waitForTimeout(220);
+                check(`${context}: ${channel} waves visible at ${width} / ${motion}`,await page.evaluate(channel=>{
+                  const scene=ioInspection.scene;
+                  return scene.waves.every((wave,index)=>{
+                    const active=channel==='both'||channel===(index<2?'left':'right');
+                    if(!active)return wave.object.geometry.instanceCount===0;
+                    const attr=wave.object.geometry.getAttribute('instanceStart');
+                    return wave.object.geometry.instanceCount>0&&Array.from({length:wave.object.geometry.instanceCount},(_,i)=>
+                      new (scene.cameraRig.camera.position.constructor)().fromBufferAttribute(attr,i).project(scene.cameraRig.camera)
+                    ).some(p=>Math.abs(p.x)<1&&Math.abs(p.y)<1&&p.z<1);
+                  });
+                },channel));
+                await capture(`${context}-audio-${channel}-${width}-${motion}`);
+                await page.getByRole('button',{name:'Stop tone',exact:true}).click();
+              }
+            }
+          }
+          await page.emulateMedia({reducedMotion:'no-preference'});
+          await page.setViewportSize({width:1440,height:900});
         }
         if(id==='microphone') {
           await page.evaluate(()=>{ioInspection.scene.microphone({state:'live',amplitude:.1,waveform:Float32Array.from({length:128},(_,i)=>Math.sin(i*.5)*.2),settings:null});ioInspection.scene.render();});

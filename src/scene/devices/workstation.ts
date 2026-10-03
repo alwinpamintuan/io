@@ -144,14 +144,16 @@ export function createWorkstation(roots: Map<DeviceId, Group>, materials: Materi
   for (let x = -9; x <= 9; x += 3) gridPoints.push(new Vector3(x,-6,.006),new Vector3(x,6,.006));
   for (let y = -6; y <= 6; y += 3) gridPoints.push(new Vector3(-9,y,.006),new Vector3(9,y,.006));
   const grid = new GraphicLines('detail', gridPoints);
-  grid.object.material.transparent = true; grid.object.material.opacity = .26;
+  grid.object.material.transparent = true; grid.object.material.opacity = .38;
+  grid.object.material.alphaToCoverage = false;
   const circle = Array.from({length:64},(_,i)=>new Vector3(Math.cos(i/64*Math.PI*2)*3.8,Math.sin(i/64*Math.PI*2)*3.8,.008));
   const reticle = new GraphicLines('detail', [
     ...circle.flatMap((p,i)=>[p,circle[(i+1)%circle.length]!]),
     new Vector3(-1,0,.008),new Vector3(1,0,.008),new Vector3(0,-1,.008),new Vector3(0,1,.008),
     ...[-1,1].flatMap(sign=>[new Vector3(sign*21,-.6,.008),new Vector3(sign*21,.6,.008)]),
   ]);
-  reticle.object.material.transparent = true; reticle.object.material.opacity = .56;
+  reticle.object.material.transparent = true; reticle.object.material.opacity = .65;
+  reticle.object.material.alphaToCoverage = false;
   screenIdentity.add(grid.object,reticle.object); detailLines.push(grid,reticle); owned.push(grid,reticle);
   screenIdentity.visible = !options.flat;
   const mouseButtons = spike.mouseButtons;

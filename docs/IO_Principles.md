@@ -1,6 +1,6 @@
 # IO engineering and design principles
 
-IO is a static, client-side space for testing devices. The illustrated workstation is the interface: select a device, test it in focus, and return through the IO mark. Keep diagnostic information small, legible, and tied to the relevant device.
+IO is a static, client-side space for testing devices. The illustrated workstation is the interface: select a device, test it in focus, and return through the distinct overview arrow. The IO mark and small current-view label provide orientation. Keep diagnostic information small, legible, and tied to the relevant device.
 
 ## Product and interaction
 
@@ -26,16 +26,16 @@ Prioritize coherent projection, silhouette, occlusion, grounding, line hierarchy
 - All devices share one projection and world coordinate system. Units are centimeters: X right, Y rearward, Z up; the invisible desk is Z=0.
 - Keep canonical device roots separate from focus transforms and diagnostic anchors. Parent the webcam to its monitor mount. Resting contact shadows stay on their supports when a device lifts.
 - Anchor overlays and controller scopes to actual world geometry. Preserve clear silhouettes and avoid annotation overlap with controls.
-- Activate negative space with localized, low-contrast drafting fields and input-derived traces. Keep idle fields quiet, grids cropped, and physical context independent of peripheral count. Do not add decorative desk props or ghost hardware to fill gaps.
+- Use sparse, low-contrast drafting anchored to hardware geometry, with cropped grids and clear silhouettes. Keep names and leaders hidden at rest; hover or keyboard focus reveals one device label and its related field. Labels activate the same tester as the device and remain reachable by pointer. Hide overview annotations during focus and transitions. Avoid decorative props and ghost hardware.
 - Optional device visibility is a presentation policy, separate from availability evidence. Keep core workstation objects and accessible testers; reframe reduced overviews modestly without moving canonical roots. Do not infer precise hardware presence from browser support or permission state.
 - Keep exact dimensions, camera poses, and line widths in the source, rather than duplicating tuning constants in documents.
 
 ## Motion
 
-- Move one shared camera continuously between overview and focus. Avoid bounce, idle floating, and decorative motion.
+- Move one shared camera continuously between overview and focus. Keep hover cues brief and restrained; avoid bounce, idle floating, and decorative motion.
 - Interrupt transitions from the current pose, with explicit state and revision guards. Resizing must preserve continuity.
 - Input feedback is immediate and restrained. Camera choreography must not delay testing or fabricate device activity.
-- Reduced motion uses brief controlled changes. Reveal annotations when their placement is stable and restore the exact resting transforms on return.
+- Reduced motion uses brief controlled transitions and static input feedback. Show focus diagnostics when placement is stable and restore exact resting transforms on return.
 
 ## Engineering
 
@@ -45,7 +45,7 @@ Prioritize coherent projection, silhouette, occlusion, grounding, line hierarchy
 - Retain TypeScript, Three.js, and small semantic DOM controls. Avoid large UI frameworks, dashboard/card layouts, unnecessary dependencies, and backend services.
 - Cap pixel ratio and skip idle redraws. Keep scene resources reusable and cleanup symmetric, including listeners, tracks, audio, pending requests, and context recovery.
 - Feature-detect browser APIs and provide usable fallback controls when rendering or a device capability is unavailable.
-- Keep authored mesh source and baked assets together. Tests should protect behavior and geometry invariants, not freeze incidental screenshots or implementation details.
+- Keep authored mesh source and baked assets together; regenerate assets with `node scripts/author-devices.mjs` when control points change. Run `npm test`, `npm run typecheck`, and `npm run build` for application changes. Tests protect behavior and geometry invariants, not incidental screenshots or implementation details.
 
 ## Privacy and measurement honesty
 

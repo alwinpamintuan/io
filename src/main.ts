@@ -1,9 +1,9 @@
 import './style.css';
 import { detectCapabilities, observeReducedMotion } from './app/capabilities';
 import { RenderLoop } from './app/renderLoop';
-import { HashRouter } from './app/router';
+import { HashRouter, parseHash } from './app/router';
 import { SceneStore } from './app/state';
-import type { SceneAction } from './app/state';
+import type { DeviceId, SceneAction } from './app/state';
 import { SceneController } from './scene/SceneController';
 import { DEVICE_IDS } from './app/state';
 import { DeviceInputManager } from './input/DeviceInputManager';
@@ -32,17 +32,28 @@ function startApplication(): () => void {
   const overlay = new OverlayManager(document.querySelector<HTMLElement>('#app')!, scene);
   const inputs = new DeviceInputManager(canvas, scene, overlay);
   const nav = document.createElement('nav'); nav.className = 'device-navigation'; nav.ariaLabel = 'Peripheral tests';
+  let focused: DeviceId | null = null;
+  let dismissal: ReturnType<typeof setTimeout> | undefined;
+  const reveal = (id: DeviceId | null): void => {
+    clearTimeout(dismissal);
+    const active = focused ?? id;
+    scene.hover(active); overlay.overviewField?.hover(active);
+  };
+  const dismiss = (): void => { clearTimeout(dismissal); dismissal = setTimeout(() => reveal(null), 120); };
+  overlay.overviewField?.setInteraction({ enter: reveal, leave: dismiss, activate: id => router.navigate(id) });
   const buttons = DEVICE_IDS.map((id) => {
     const button = document.createElement('button'); button.type = 'button'; button.textContent = id === 'camera' ? 'Webcam' : id;
     button.ariaLabel = `Test ${id}`; button.addEventListener('click', () => router.navigate(id));
-    button.addEventListener('focus', () => scene.hover(id)); button.addEventListener('blur', () => scene.hover(null));
+    button.addEventListener('focus', () => { focused = id; reveal(id); }); button.addEventListener('blur', () => { focused = null; dismiss(); });
+    button.addEventListener('pointerenter', () => reveal(id)); button.addEventListener('pointerleave', dismiss);
     nav.append(button); return { id, button };
   });
   document.querySelector('#app')!.append(nav);
   const pointerMove = (event: PointerEvent): void => {
     const rect = canvas.getBoundingClientRect();
     const hit = scene.pick(event.clientX - rect.left, event.clientY - rect.top);
-    scene.hover(hit); canvas.classList.toggle('device-hover', Boolean(hit));
+    if (event.pointerType !== 'touch') { if (hit) reveal(hit); else dismiss(); }
+    canvas.classList.toggle('device-hover', Boolean(hit));
   };
   const pointerDown = (event: PointerEvent): void => {
     if (event.pointerType !== 'touch') canvas.classList.add('pointer-pressed');
@@ -52,7 +63,7 @@ function startApplication(): () => void {
     if (hit) router.navigate(hit);
   };
   const pointerUp = (): void => canvas.classList.remove('pointer-pressed');
-  const pointerLeave = (): void => { scene.hover(null); canvas.classList.remove('device-hover', 'pointer-pressed'); };
+  const pointerLeave = (): void => { dismiss(); canvas.classList.remove('device-hover', 'pointer-pressed'); };
   canvas.addEventListener('pointermove', pointerMove);
   canvas.addEventListener('pointerdown', pointerDown);
   canvas.addEventListener('pointerleave', pointerLeave);
@@ -60,6 +71,7 @@ function startApplication(): () => void {
   window.addEventListener('pointerup', pointerUp);
   window.addEventListener('blur', pointerUp);
   const unsubscribeState = store.subscribe((state) => {
+    clearTimeout(dismissal); focused = null; reveal(null);
     inputs.setState(state);
     scene.applyState(state, dispatch);
     for (const { id, button } of buttons) button.setAttribute('aria-pressed', String(state.mode === 'focus' && state.device === id));
@@ -110,6 +122,7 @@ function startApplication(): () => void {
 
   function dispose(): void {
     loop.stop();
+    clearTimeout(dismissal);
     unsubscribeRoute();
     unsubscribeState();
     stopMotionPreference();
@@ -128,5 +141,12 @@ function startApplication(): () => void {
   return dispose;
 }
 
+function updateHeader(): void {
+  const route = parseHash(location.hash);
+  document.querySelector('#view-label')!.textContent = route === 'camera' ? 'webcam' : route === 'audio' ? 'speaker' : route ?? 'overview';
+  document.querySelector<HTMLElement>('.overview-link')!.hidden = route === null;
+}
+updateHeader();
+window.addEventListener('hashchange', updateHeader);
 const dispose = startApplication();
-if (import.meta.hot) import.meta.hot.dispose(dispose);
+if (import.meta.hot) import.meta.hot.dispose(() => { dispose(); window.removeEventListener('hashchange', updateHeader); });

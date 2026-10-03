@@ -3,6 +3,7 @@ import type { SceneController } from '../scene/SceneController';
 import type { CameraSnapshot } from '../input/CameraAdapter';
 import type { GamepadSnapshot } from '../input/GamepadAdapter';
 import { designButton } from './controls';
+import { OverviewField } from './OverviewField';
 
 export class OverlayManager {
   readonly root = document.createElement('section');
@@ -22,7 +23,9 @@ export class OverlayManager {
   private readonly drafting = document.createElement('div');
   private readonly indexed = document.createElement('div');
   private indexedSignature = '';
-  constructor(parent: HTMLElement, private readonly scene: Pick<SceneController, 'anchor'> & Partial<Pick<SceneController, 'focusProgress' | 'focusBounds' | 'screenBounds'>>) {
+  readonly overviewField: OverviewField | null;
+  constructor(parent: HTMLElement, private readonly scene: Pick<SceneController, 'anchor'> & Partial<Pick<SceneController, 'focusProgress' | 'focusBounds' | 'screenBounds' | 'overviewBounds'>>) {
+    this.overviewField = scene.overviewBounds ? new OverviewField(parent, { overviewBounds: scene.overviewBounds.bind(scene) }) : null;
     this.root.className = 'instrument'; this.root.hidden = true;
     this.root.ariaLabel = 'Device test'; this.metrics.className = 'measurements';
     this.metrics.setAttribute('aria-live', 'off'); this.metrics.setAttribute('role', 'group');
@@ -39,6 +42,7 @@ export class OverlayManager {
     this.live.className = 'sr-only'; this.live.setAttribute('role', 'status'); parent.append(this.live);
   }
   state(state: SceneState): void {
+    this.overviewField?.state(state);
     const previous = this.device;
     this.announce('');
     this.metrics.removeAttribute('aria-label'); this.metrics.removeAttribute('style');
@@ -85,6 +89,7 @@ export class OverlayManager {
   setMessage(value: string, visible = false): void { if (this.message.textContent !== value) this.message.textContent = value; this.message.classList.toggle('sr-only', !visible); }
   announce(value: string): void { if (this.live.textContent !== value) this.live.textContent = value; }
   update(): void {
+    this.overviewField?.update();
     if (!this.device) return;
     const progress = this.scene.focusProgress?.() ?? 1;
     this.root.hidden = this.entering && progress < 0.7;
@@ -124,5 +129,5 @@ export class OverlayManager {
     this.path.setAttribute('d', `M${anchor.x},${anchor.y} H${elbow} V${y+this.preview.offsetHeight/2} H${edge}`);
     this.connector.style.visibility = camera && anchor.visible && !this.root.hidden ? 'visible' : 'hidden';
   }
-  dispose(): void { this.video?.remove(); this.root.remove(); this.connector.remove(); this.live.remove(); this.drafting.remove(); }
+  dispose(): void { this.overviewField?.dispose(); this.video?.remove(); this.root.remove(); this.connector.remove(); this.live.remove(); this.drafting.remove(); }
 }

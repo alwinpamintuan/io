@@ -10,12 +10,16 @@
   <body>
     <main id="app" aria-label="IO workstation">
       <canvas id="scene" role="img" aria-label="Interactive workstation illustration"></canvas>
-      <a class="io-mark" href="#" aria-label="Return to workstation overview">
+      <header class="view-header">
+      <span class="io-mark" role="img" aria-label="IO">
         <svg viewBox="0 0 32 24" aria-hidden="true">
           <path d="M4 3v18" />
           <circle cx="21" cy="12" r="9" />
         </svg>
-      </a>
+      </span>
+      <span id="view-label">overview</span>
+      <a class="overview-link" href="#" aria-label="Return to workstation overview" hidden>←</a>
+      </header>
       <p id="status" class="sr-only" role="status" aria-live="polite"></p>
     </main>
     <script type="module" src="/src/main.ts"></script>
