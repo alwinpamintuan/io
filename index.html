@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f4f0" />
+    <title>IO — A space for your devices</title>
+  </head>
+  <body>
+    <main id="app" aria-label="IO workstation">
+      <canvas id="scene" role="img" aria-label="Interactive workstation illustration"></canvas>
+      <a class="io-mark" href="#" aria-label="Return to workstation overview">
+        <svg viewBox="0 0 32 24" aria-hidden="true">
+          <path d="M4 3v18" />
+          <circle cx="21" cy="12" r="9" />
+        </svg>
+      </a>
+      <p id="status" class="sr-only" role="status" aria-live="polite"></p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
