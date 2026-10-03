@@ -17,7 +17,7 @@ npm run build
 npm run preview
 ```
 
-Deploy the contents of `dist/` to a static HTTPS host. Assets use relative URLs and navigation uses hashes, so no server route rewrites, backend, database, or API keys are needed. Camera and microphone access require a secure context; localhost is suitable for development. Open the site as HTTP(S), rather than opening the HTML file directly. Hosting inside an iframe may require camera, microphone, fullscreen, and gamepad permission policies from the embedding page.
+Deploy the complete contents of `dist/` to a static HTTPS host. The build generates real route directories with shared relative asset URLs, so no server route rewrites, backend, database, or API keys are needed. Camera and microphone access require a secure context; localhost is suitable for development. Open the site as HTTP(S), rather than opening the HTML file directly. Hosting inside an iframe may require camera, microphone, fullscreen, and gamepad permission policies from the embedding page.
 
 ## Testers
 
@@ -29,7 +29,9 @@ Deploy the contents of `dist/` to a static HTTPS host. Assets use relative URLs 
 - **Audio:** conservative one-second 220/440/880 Hz left/right/both output tones and Stop, with outward channel-gated wavefronts and L/R/LR playback status. Reduced motion shows static channel arcs during playback. These graphics indicate initiated playback, not measured sound.
 - **Microphone:** independent Start/Stop, local waveform and digital RMS amplitude. Input is never played through speakers. Digital amplitude is not calibrated sound pressure.
 
-Routes are `#keyboard`, `#mouse`, `#monitor`, `#camera`, `#controller`, `#audio`, and `#microphone`. Empty/unknown hashes show overview. Deep links and Back/Forward work during transitions. Keyboard users can Tab to semantic device buttons; narrow viewports expose the buttons visibly. Reduced motion uses a short controlled camera cut. If WebGL2 initialization fails, the same adapters remain available through semantic controls and a 2D test surface.
+Public routes are `keyboard-test/`, `mouse-test/`, `controller-test/`, `webcam-test/`, `microphone-test/`, `speaker-test/`, `monitor-test/` and `refresh-rate-test/`, relative to the deployment root (`/io/` on GitHub Pages). Each opens the corresponding device; refresh-rate testing opens the monitor's timing pattern. The overview arrow returns to the root. In-app navigation and Back/Forward keep one shared scene and page-session key progress. Direct loads and reloads use the generated route files.
+
+Legacy hashes `#keyboard`, `#mouse`, `#monitor`, `#camera`, `#controller`, `#audio`, and `#microphone` still work and normalize to real paths without adding a history entry. Unknown hashes show overview. Deep links and Back/Forward work during transitions. Keyboard users can Tab to semantic device buttons; narrow viewports expose the buttons visibly. Reduced motion uses a short controlled camera cut. If WebGL2 initialization fails, the same adapters remain available through semantic controls and a 2D test surface.
 
 ### Device selection across viewport sizes
 
@@ -43,8 +45,14 @@ See [IO principles](docs/IO_Principles.md) for product, engineering, and design 
 
 ## Search and sharing
 
-The initial HTML includes a descriptive title, search and social descriptions, the canonical production URL, WebApplication structured data, and a readable guide to all seven testers below the workstation. Guide links open the existing hash routes and scroll back to the test surface. JavaScript is required for interactive testing.
+The homepage and eight tester pages have unique titles, descriptions, self-referencing canonicals, WebApplication structured data and social metadata. Their initial HTML includes route-specific explanations, measurement limitations and normal links to related tests inside the collapsed Info section in the upper-right corner. Info opens a scrollable guide without extending the workstation page. Selecting a related test closes Info and navigates within the same application. Modified clicks retain native link behavior. The disclosure and page links work without JavaScript; interactive testing requires JavaScript.
 
-The sitemap is published at `https://alwinpamintuan.github.io/io/sitemap.xml`. It lists the main page only: device hashes are views within that page, not separate indexable pages. Submit the sitemap through Google Search Console after deployment. GitHub Pages serves this project under `/io/`; crawler rules belong at the host root `/robots.txt`, so a project-level robots file would not control crawling.
+`src/seo/pages.ts` is the source of truth for routes, copy and production URLs. The Vite SEO plugin generates the nine HTML entry files, `sitemap.xml` and `robots.txt` during the build. Assets remain shared, and nested pages use relative paths to those assets. `public/social-preview.png` is a 1200 × 630 capture of the workstation; regenerate it with `node scripts/create-social-preview.cjs` after a build, then build again to include the new image.
 
-When moving to another production address, update the canonical URL, `og:url`, JSON-LD URL in `index.html`, and the URL in `public/sitemap.xml` together.
+The sitemap is published at `https://alwinpamintuan.github.io/io/sitemap.xml` and lists all nine pages without hash fragments. The generated robots file allows crawling and references that sitemap. GitHub Pages serves this project under `/io/`, but search engines read robots rules only at the host root `/robots.txt`. Publish the generated rules in the `alwinpamintuan.github.io` root repository, or at the root of a future custom domain, for them to apply.
+
+After deployment, verify the `/io/` URL-prefix property in Google Search Console, submit the sitemap, inspect each entry page and request indexing where appropriate. Search Console ownership and indexing requests are account-level operations; a sitemap does not guarantee immediate indexing. Repository About should describe IO as a minimal browser-based keyboard, mouse, controller, webcam, display, speaker and microphone tester, link to the live site, and include relevant device-testing topics.
+
+For local navigation verification, run `npm run build` and `npm run verify:navigation`. The browser check uses a strict static server without an SPA fallback, testing direct tester entry, history, legacy links, page-session continuity, permissions, monitor timing, mobile Info and WebGL fallback under both `/` and GitHub Pages-style `/io/` paths. It requires local Playwright and Chromium, like the existing device verification scripts. Override discovery with `IO_PLAYWRIGHT_PATH` (package path) and `IO_CHROMIUM_PATH` (browser executable) if needed.
+
+When moving to another production address, change `SITE_URL` in `src/seo/pages.ts` and rebuild; canonicals, JSON-LD, Open Graph URLs, social image URLs, sitemap and robots output update together. Preserve the tester route structure and update Search Console and repository About to match.
