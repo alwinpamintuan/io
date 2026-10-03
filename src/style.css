@@ -8,6 +8,14 @@
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; }
 body { margin: 0; }
+.test-guide { max-width: 76ch; margin: 0 auto; padding: 48px 28px 64px; font-size: 13px; line-height: 1.7; }
+.test-guide h1, .test-guide h2 { font-size: 16px; font-weight: 500; line-height: 1.5; }
+.test-guide h2 { margin-top: 32px; }
+.test-guide p, .test-guide dd { color: #5d5d58; }
+.test-guide dt { margin-top: 20px; }
+.test-guide dd { margin: 4px 0 0; }
+.test-guide a { color: inherit; text-underline-offset: 4px; }
+.test-guide a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 #app { position: relative; width: 100%; height: 100%; min-height: 240px; }
 #scene { display: block; width: 100%; height: 100%; }
 #scene:focus { outline: none; }

@@ -8,6 +8,7 @@ IO is a static, client-side space for testing devices. The illustrated workstati
 - Keep overview calm. Focus reveals the selected device's controls and observations without replacing its scene object.
 - Preserve hash deep links, browser Back/Forward, interruption during transitions, and an exact return to the resting workstation.
 - Make selection and controls accessible through semantic HTML, visible focus, descriptive labels, and keyboard operation. Expose device navigation on narrow screens and in the WebGL fallback.
+- Keep a readable, semantic tester guide below the workstation in the initial HTML. Search and sharing metadata describe the single canonical page; hash tester views remain in-page navigation. Keep the guide's device capabilities and privacy claims aligned with actual behavior.
 - Escape remains testable keyboard input. Use explicit home navigation; native fullscreen exit retains its browser behavior.
 - Keyboard tested-key progress lasts for the page session, across focus changes, until Reset. Reserved browser or operating-system shortcuts cannot be guaranteed.
 - Controller display legends are presentation preferences. Standard mapping determines physical controls; unknown mappings use indexed diagnostics without implying a standard layout.

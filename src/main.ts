@@ -148,5 +148,17 @@ function updateHeader(): void {
 }
 updateHeader();
 window.addEventListener('hashchange', updateHeader);
+const guide = document.querySelector<HTMLElement>('.test-guide');
+const returnToWorkstation = (event: MouseEvent): void => {
+  if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  if (event.target instanceof Element && event.target.closest('a[href^="#"]')) {
+    document.querySelector('#app')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }
+};
+guide?.addEventListener('click', returnToWorkstation);
 const dispose = startApplication();
-if (import.meta.hot) import.meta.hot.dispose(() => { dispose(); window.removeEventListener('hashchange', updateHeader); });
+if (import.meta.hot) import.meta.hot.dispose(() => {
+  dispose();
+  window.removeEventListener('hashchange', updateHeader);
+  guide?.removeEventListener('click', returnToWorkstation);
+});
