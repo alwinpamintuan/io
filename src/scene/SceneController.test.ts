@@ -21,6 +21,37 @@ function fixture(reduced = false) {
   return { scene, store, dispatch };
 }
 describe('scene navigation integration', () => {
+  it('reframes reduced layouts, omits hit targets, and restores optional testers without moving roots', () => {
+    const { scene, dispatch } = fixture();
+    const roots = [...scene.deviceRoots.values()], positions = roots.map(r => r.position.clone());
+    const original = scene.cameraRig.snapshot();
+    scene.setDeviceVisibility(['controller', 'camera', 'microphone', 'audio', 'monitor']);
+    expect(scene.deviceRoots.get('monitor')!.visible).toBe(true);
+    expect(scene.deviceRoots.get('controller')!.visible).toBe(false);
+    const compact = scene.cameraRig.snapshot(); expect(compact.position.distanceTo(compact.target)).toBeLessThan(original.position.distanceTo(original.target));
+    const point = scene.deviceRoots.get('controller')!.position.clone().project(scene.cameraRig.camera);
+    expect(scene.pick((point.x + 1) * 720, (1 - point.y) * 450)).not.toBe('controller');
+    dispatch({ type: 'navigate', device: 'controller' }); scene.update(.2);
+    scene.setDeviceVisibility(['controller', 'camera']); scene.update(.7);
+    expect(scene.deviceRoots.get('controller')!.visible).toBe(true);
+    dispatch({ type: 'navigate', device: null }); scene.update(.54);
+    expect(scene.deviceRoots.get('controller')!.visible).toBe(false);
+    expect(roots.map(r => r.position)).toEqual(positions);
+    scene.setDeviceVisibility([]); expect(scene.cameraRig.snapshot()).toEqual(original); scene.dispose();
+  });
+  it('finishes interrupted visibility transitions and keeps drafting outside physical annotation bounds', () => {
+    const { scene, store, dispatch } = fixture();
+    dispatch({ type: 'navigate', device: 'mouse' }); scene.update(.2);
+    scene.setDeviceVisibility(['microphone']); scene.update(.7);
+    expect(store.getState()).toMatchObject({ device: 'mouse', phase: 'active' });
+    const bounds = scene.focusBounds('mouse');
+    const field = scene.workstation.visuals.get('mouse')!.getObjectByName('mouse:MeasurementField')!;
+    field.position.x += 100;
+    expect(scene.focusBounds('mouse')).toEqual(bounds);
+    dispatch({ type: 'navigate', device: null }); scene.update(.2);
+    scene.setDeviceVisibility(['controller']); scene.update(.7);
+    expect(store.getState().mode).toBe('overview'); scene.dispose();
+  });
   it('keeps flush button inversion visible and bounds wheel display without changing observations', () => {
     const {scene}=fixture();
     const snapshot={buttons:5,clickMs:null,wheel:{x:0,y:10000,mode:0,angle:150},trail:[]};

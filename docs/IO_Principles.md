@@ -26,6 +26,8 @@ Prioritize coherent projection, silhouette, occlusion, grounding, line hierarchy
 - All devices share one projection and world coordinate system. Units are centimeters: X right, Y rearward, Z up; the invisible desk is Z=0.
 - Keep canonical device roots separate from focus transforms and diagnostic anchors. Parent the webcam to its monitor mount. Resting contact shadows stay on their supports when a device lifts.
 - Anchor overlays and controller scopes to actual world geometry. Preserve clear silhouettes and avoid annotation overlap with controls.
+- Activate negative space with localized, low-contrast drafting fields and input-derived traces. Keep idle fields quiet, grids cropped, and physical context independent of peripheral count. Do not add decorative desk props or ghost hardware to fill gaps.
+- Optional device visibility is a presentation policy, separate from availability evidence. Keep core workstation objects and accessible testers; reframe reduced overviews modestly without moving canonical roots. Do not infer precise hardware presence from browser support or permission state.
 - Keep exact dimensions, camera poses, and line widths in the source, rather than duplicating tuning constants in documents.
 
 ## Motion

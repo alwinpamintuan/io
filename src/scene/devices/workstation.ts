@@ -151,7 +151,7 @@ export function createWorkstation(roots: Map<DeviceId, Group>, materials: Materi
     new Vector3(-1,0,.008),new Vector3(1,0,.008),new Vector3(0,-1,.008),new Vector3(0,1,.008),
     ...[-1,1].flatMap(sign=>[new Vector3(sign*21,-.6,.008),new Vector3(sign*21,.6,.008)]),
   ]);
-  reticle.object.material.transparent = true; reticle.object.material.opacity = .48;
+  reticle.object.material.transparent = true; reticle.object.material.opacity = .56;
   screenIdentity.add(grid.object,reticle.object); detailLines.push(grid,reticle); owned.push(grid,reticle);
   screenIdentity.visible = !options.flat;
   const mouseButtons = spike.mouseButtons;

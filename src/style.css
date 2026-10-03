@@ -153,4 +153,9 @@ body { margin: 0; }
 .corner-2 {left:0;bottom:0;border-left:1px solid;border-bottom:1px solid;}
 .corner-3 {right:0;bottom:0;border-right:1px solid;border-bottom:1px solid;}
 .camera-preview .registration {opacity:.6;}
-.camera-instrument .measurements {font-size:10px;}
+.camera-instrument .measurements {font-size:10px;z-index:2;}
+.camera-guides { position:absolute; z-index:1; left:50%; top:50%; transform:translate(-50%,-50%); pointer-events:none; opacity:.35;
+ background:linear-gradient(to right,transparent calc(33.333% - .5px),#fcfcf8 calc(33.333% - .5px),#fcfcf8 calc(33.333% + .5px),transparent calc(33.333% + .5px),transparent calc(66.667% - .5px),#fcfcf8 calc(66.667% - .5px),#fcfcf8 calc(66.667% + .5px),transparent calc(66.667% + .5px)),linear-gradient(to bottom,transparent calc(33.333% - .5px),#fcfcf8 calc(33.333% - .5px),#fcfcf8 calc(33.333% + .5px),transparent calc(33.333% + .5px),transparent calc(66.667% - .5px),#fcfcf8 calc(66.667% - .5px),#fcfcf8 calc(66.667% + .5px),transparent calc(66.667% + .5px)); }
+.camera-guides::before,.camera-guides::after { content:''; position:absolute; background:#fcfcf8; left:50%; top:50%; transform:translate(-50%,-50%); }
+.camera-guides::before { width:12px; height:1px; }
+.camera-guides::after { width:1px; height:12px; }

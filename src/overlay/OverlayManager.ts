@@ -16,6 +16,7 @@ export class OverlayManager {
   private entering = false;
   private readonly preview = document.createElement('div');
   private readonly previewStatus = document.createElement('span');
+  private readonly cameraGuides = document.createElement('div');
   private video: HTMLVideoElement | null = null;
   private mirror = false;
   private readonly drafting = document.createElement('div');
@@ -28,6 +29,7 @@ export class OverlayManager {
     this.controls.className = 'test-controls'; this.message.className = 'test-message';
     this.preview.className = 'camera-preview'; this.preview.ariaLabel = 'Local webcam viewing frame'; this.preview.hidden = true;
     this.previewStatus.className = 'preview-status'; this.preview.append(this.previewStatus);
+    this.cameraGuides.className = 'camera-guides'; this.cameraGuides.ariaHidden = 'true'; this.cameraGuides.hidden = true; this.preview.append(this.cameraGuides);
     this.indexed.className = 'indexed-controls'; this.indexed.hidden = true; this.indexed.tabIndex = 0; this.indexed.setAttribute('role', 'group'); this.indexed.ariaLabel = 'Browser indexed controller observations';
     this.message.setAttribute('role', 'status'); this.root.append(this.preview, this.metrics, this.indexed, this.controls, this.message); parent.append(this.root);
     this.drafting.className='drafting-marks'; this.drafting.ariaHidden='true'; parent.append(this.drafting);
@@ -58,6 +60,11 @@ export class OverlayManager {
   camera(value: CameraSnapshot): void {
     if (this.device !== 'camera') return;
     this.preview.dataset.state = value.state;
+    this.cameraGuides.hidden = value.state !== 'live';
+    const aspect = value.video?.videoWidth && value.video.videoHeight ? value.video.videoWidth / value.video.videoHeight
+      : value.settings?.width && value.settings.height ? value.settings.width / value.settings.height : value.settings?.aspectRatio || 16 / 9;
+    this.cameraGuides.style.width = `${Math.min(1, aspect / (16 / 9)) * 100}%`;
+    this.cameraGuides.style.height = `${Math.min(1, (16 / 9) / aspect) * 100}%`;
     this.previewStatus.textContent = value.state === 'requesting' ? '…' : value.state === 'idle' ? '+' : value.state === 'live' ? '' : '∕';
     if (this.video !== value.video) { this.video?.remove(); this.video = value.video; if (this.video) this.preview.append(this.video); }
     if (this.video) { this.video.style.transform = this.mirror ? 'scaleX(-1)' : ''; this.video.ariaLabel = 'Local webcam preview'; }
@@ -98,7 +105,7 @@ export class OverlayManager {
     } else if(w>=800) {
       if(this.device==='keyboard') {x=32;y=h-height-28;}
       if(this.device==='mouse') {x=w*.68;y=h*.2;}
-      if(this.device==='controller') {x=w*.67;y=h*.58;}
+      if(this.device==='controller') {x=w*.67;y=h*.68;}
       if(this.device==='audio') {x=w*.49;y=h*.75;}
       if(this.device==='microphone') {x=w*.61;y=h*.52;}
       if(this.device==='monitor') {x=32;y=h-height-24;}

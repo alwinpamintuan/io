@@ -43,6 +43,10 @@ export class CameraRig {
     this.focusPoses.set(device, copyPose(pose));
   }
 
+  setOverviewPose(pose: CameraPose): void {
+    this.overview.position.copy(pose.position); this.overview.target.copy(pose.target);
+  }
+
   poseFor(route: SceneRoute): CameraPose {
     const pose = copyPose(route === null ? this.overview : this.focusPoses.get(route) ?? this.overview);
     if (route === null) {

@@ -45,4 +45,8 @@ Run `npm test`, `npm run typecheck`, and `npm run build` when changing the appli
 
 Development inspection flags include `debugVisual`, `debugFlat`, `debugSilhouette`, `debugNoShadow`, `debugMotion`, `debugReducedMotion`, and `debugFallback`, supplied as URL query parameters. They are excluded from production.
 
+Use `debugHide=controller,camera,microphone,audio` to inspect a reduced workstation in development. Core monitor, keyboard, and mouse objects remain present; a hidden optional object reappears while its tester is selected. Overview framing and its localized drafting field adapt to the omitted objects. This is a presentation preview, not hardware detection. The default scene still shows all seven testers.
+
 `scripts/verify-visuals.cjs` checks browser interactions, persistent scene geometry, and device presentation with synthetic inputs. It requires a local Playwright installation and Chromium; set `IO_PLAYWRIGHT_PATH` to the Playwright module and `IO_BASE_URL` to the running app. `IO_VERIFY_OUTPUT` selects the capture directory (default: ignored `artifacts/visuals`). These checks do not certify physical hardware, other browsers, assistive technology, or GPU performance.
+
+`scripts/verify-scene-fields.cjs` checks normal and reduced-device compositions, transient telemetry cleanup, channel gating, and contained webcam guides using synthetic input and local canvas video. It uses the same runtime/base/output environment variables and defaults to ignored `artifacts/scene-correction` captures.

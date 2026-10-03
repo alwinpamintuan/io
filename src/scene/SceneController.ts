@@ -3,7 +3,8 @@ import type { Material } from 'three';
 import type { DeviceId } from '../app/state';
 import type { SceneAction, SceneState } from '../app/state';
 import { DEVICE_IDS } from '../app/state';
-import { CameraRig } from './CameraRig';
+import { CameraRig, createOverviewPose } from './CameraRig';
+import { MeasurementField, controllerCalibration } from './MeasurementField';
 import { createMaterials, PALETTE } from './materials';
 import { EASING, MotionController, MOTION_DURATION } from './MotionController';
 import { createWorkstation } from './devices/workstation';
@@ -43,7 +44,14 @@ export class SceneController {
   private readonly raycaster = new Raycaster();
   private readonly keys: ReturnType<typeof createKeyboardKeys>;
   private readonly trail = new GraphicLines('detail');
+  private readonly direction = new GraphicLines('detail');
+  private readonly controllerVectors = new GraphicLines('detail');
+  private lastGamepad: GamepadSnapshot | null = null;
+  private readonly measurementField: MeasurementField;
+  private readonly hiddenDevices = new Set<DeviceId>();
   private trailSignature = '';
+  private pointerAge = .65;
+  private pointerTime: number | null = null;
   private wheelObservedAngle = 0;
   private wheelTargetAngle = 0;
   private dispatch: ((action: SceneAction) => void) | null = null;
@@ -91,19 +99,50 @@ export class SceneController {
     this.legends = createControllerLegends(this.workstation.buttons); this.legends.detail(0);
     this.worldRoot.updateMatrixWorld(true);
     this.workstation.visuals.forEach((visual, id) => { this.detailBounds.set(id, new Box3().setFromObject(visual)); this.detailStrength.set(id, 0); });
+    this.measurementField = new MeasurementField(this.workstation.visuals, this.workstation.drivers, this.workstation.micEffect);
+    this.worldRoot.add(this.measurementField.root);
     this.trail.object.name = 'PointerTrail'; this.worldRoot.add(this.trail.object);
+    this.direction.object.name = 'PointerDirection'; this.worldRoot.add(this.direction.object);
+    this.controllerVectors.object.name = 'ControllerVectors'; this.workstation.visuals.get('controller')!.add(this.controllerVectors.object);
+    this.controllerVectors.object.material.linewidth = 1.2;
+    this.stickScopes.forEach(scope => { scope.object.material.linewidth = 1; });
     this.worldRoot.add(this.waveform.object, ...this.waves.map((wave) => wave.object), ...this.stickScopes.map(scope => scope.object));
     this.waveform.object.visible = false; this.waves.forEach((wave) => { wave.object.visible = false; });
     this.worldRoot.updateMatrixWorld(true);
     this.debug = import.meta.env.DEV
       ? createSceneDebug(this.debugOptions, this.workstation.solids, this.workstation.anchors, this.cameraRig) : null;
     if (this.debug) this.scene.add(this.debug.root);
+    if (import.meta.env.DEV) this.setDeviceVisibility(new URLSearchParams(window.location.search).get('debugHide')?.split(',') ?? []);
+  }
+
+  /** Presentation policy only: visibility does not assert browser hardware knowledge.
+   * Keep the selected tester accessible even when its overview object is omitted. */
+  setDeviceVisibility(hidden: readonly string[]): void {
+    this.hiddenDevices.clear();
+    for (const id of DEVICE_IDS) if (hidden.includes(id) && !['monitor', 'keyboard', 'mouse'].includes(id)) this.hiddenDevices.add(id);
+    const pose = createOverviewPose();
+    const scale = 1 - this.hiddenDevices.size * .018;
+    pose.position.sub(pose.target).multiplyScalar(scale).add(pose.target);
+    this.cameraRig.setOverviewPose(pose); this.measurementField.layout(this.hiddenDevices.size);
+    if (this.state && this.motion.active && this.dispatch) this.applyState(this.state, this.dispatch);
+    else if (this.state) this.restore(this.state);
+    this.invalidate();
+  }
+
+  private presentFields(): void {
+    const selected = this.state?.mode === 'focus' ? this.state.device : null;
+    for (const [id, root] of this.deviceRoots) root.visible = !this.hiddenDevices.has(id) || id === selected;
+    const stable = this.state?.mode === 'focus' && this.state.phase !== 'exiting' && (!this.motion.active || this.motion.progress >= .7);
+    this.measurementField.state(selected, stable && !this.debugOptions.flat && !this.debugOptions.silhouette);
+    this.controllerVectors.object.visible = selected === 'controller' && stable && this.controllerVectors.object.geometry.instanceCount > 0;
+    if (this.debugOptions.flat || this.debugOptions.silhouette) this.measurementField.root.visible = false;
   }
 
   applyState(state: SceneState, dispatch: (action: SceneAction) => void): void {
     this.dispatch = dispatch;
     const previous = this.state;
     this.state = state;
+    this.presentFields();
     this.invalidate();
     if (state.mode === 'overview') {
       this.motion.cancel(); this.cameraRig.applyPose(this.cameraRig.poseFor(null));
@@ -169,11 +208,13 @@ export class SceneController {
     this.cameraRig.resize(width, height);
     this.workstation.resize(width, height);
     this.trail.resize(width, height);
+    this.direction.resize(width, height); this.controllerVectors.resize(width, height); this.measurementField.resize(width, height);
     this.waveform.resize(width, height); this.waves.forEach((wave) => wave.resize(width, height));
     this.stickScopes.forEach(scope => scope.resize(width,height));
     this.registerPoses();
     if (this.motion.active && this.state && this.dispatch) this.applyState(this.state, this.dispatch);
     else this.cameraRig.applyPose(this.cameraRig.poseFor(this.state?.mode === 'focus' ? this.state.device : null));
+    this.gamepad(this.lastGamepad);
     this.invalidate();
   }
 
@@ -185,6 +226,13 @@ export class SceneController {
   update(deltaSeconds: number): void {
     this.frameMs = deltaSeconds * 1000;
     this.motion.update(deltaSeconds);
+    if (this.pointerAge < .65) {
+      this.pointerAge = Math.min(.65, this.pointerAge + deltaSeconds);
+      for (const line of [this.trail, this.direction]) {
+        line.object.material.transparent = true; line.object.material.opacity = .65 * (1 - this.pointerAge / .65);
+      }
+      this.invalidate();
+    }
     const wheel=this.workstation.mouseWheel;
     if(Math.abs(wheel.rotation.x-this.wheelTargetAngle)>.001) {
       wheel.rotation.x=this.reducedMotion?this.wheelTargetAngle:MathUtils.lerp(wheel.rotation.x,this.wheelTargetAngle,1-Math.exp(-deltaSeconds/0.025));
@@ -192,6 +240,7 @@ export class SceneController {
       this.invalidate();
     }
     this.resolveDetail(deltaSeconds);
+    this.presentFields();
     if (this.state?.mode === 'overview') {
       for (const [id, visual] of this.workstation.visuals) {
         const desired = !this.reducedMotion && id === this.hovered && id !== 'monitor' && id !== 'camera' ? 0.45 : 0;
@@ -257,6 +306,7 @@ export class SceneController {
       visual.rotation.z = device === id ? MathUtils.degToRad(FOCUS_YAW[device]) : 0;
     }
     this.contrast(id, id ? 1 : 0); this.keys.detail(id === 'keyboard'); this.invalidate();
+    this.presentFields();
   }
 
   private registerPoses(): void {
@@ -272,7 +322,7 @@ export class SceneController {
     if (this.state?.mode !== 'overview') return null;
     this.worldRoot.updateMatrixWorld(true);
     this.raycaster.setFromCamera(new Vector2(x / this.width * 2 - 1, 1 - y / this.height * 2), this.cameraRig.camera);
-    return this.raycaster.intersectObjects(this.workstation.hitTargets, false)[0]?.object.userData.device ?? null;
+    return this.raycaster.intersectObjects(this.workstation.hitTargets.filter(mesh => !this.hiddenDevices.has(mesh.userData.device)), false)[0]?.object.userData.device ?? null;
   }
 
   hover(id: DeviceId | null): void { this.hovered = id; this.invalidate(); }
@@ -296,11 +346,22 @@ export class SceneController {
     if (!this.reducedMotion) for (const sample of snapshot.trail) {
       this.raycaster.setFromCamera(new Vector2(sample.x / this.width * 2 - 1, 1 - sample.y / this.height * 2), this.cameraRig.camera);
       const point = this.raycaster.ray.intersectPlane(new Plane(new Vector3(0, 0, 1), -0.035), new Vector3());
-      if (point && point.distanceTo(this.deviceRoots.get('mouse')!.getWorldPosition(new Vector3())) < 45) points.push(point);
+      if (point) points.push(point);
     }
     const signature = snapshot.trail.map((point) => point.time).join(',');
+    const latestTime = snapshot.trail.at(-1)?.time ?? null;
+    if (latestTime !== this.pointerTime) { this.pointerTime = latestTime; if (latestTime !== null) this.pointerAge = 0; }
     if (signature !== this.trailSignature) {
       this.trailSignature = signature; this.trail.setPoints(points.flatMap((point, i) => i === 0 ? [] : [points[i - 1]!, point]));
+      const last = points.at(-1), previous = points.at(-2);
+      const arrow: Vector3[] = [];
+      if (last && previous && last.distanceTo(previous) > .01) {
+        const vector = last.clone().sub(previous).normalize();
+        const end = last.clone().addScaledVector(vector, 1.6);
+        const normal = new Vector3(-vector.y, vector.x, 0);
+        arrow.push(last, end, end, end.clone().addScaledVector(vector, -.6).addScaledVector(normal, .3), end, end.clone().addScaledVector(vector, -.6).addScaledVector(normal, -.3));
+      }
+      this.direction.setPoints(arrow);
     }
     this.invalidate();
   }
@@ -351,6 +412,7 @@ export class SceneController {
   }
 
   gamepad(snapshot: GamepadSnapshot | null): void {
+    this.lastGamepad = snapshot;
     this.legends.mapping(snapshot?.standard ?? null);
     for (const [index, button] of this.workstation.buttons) {
       const value = snapshot?.standard ? snapshot.buttons[index] ?? 0 : 0;
@@ -381,6 +443,17 @@ export class SceneController {
       points.push(point(0,0),point(snapshot.axes[i*2]!*radius,snapshot.axes[i*2+1]!*radius));
       scope.setPoints(points);
     });
+    const vectors: Vector3[] = [];
+    const calibration = controllerCalibration(this.width / this.height);
+    if (snapshot?.standard) calibration.centers.forEach((x, i) => {
+      if (snapshot.axes.length < (i + 1) * 2) return;
+      const ax = snapshot.axes[i * 2]!, ay = snapshot.axes[i * 2 + 1]!;
+      // The small center circle is a reference, not a claim about hardware dead zones.
+      if (Math.hypot(ax, ay) < .01) return;
+      const p = (xx: number, yy: number) => new Vector3(xx, yy, 3.04);
+      vectors.push(p(x, calibration.y), p(x + ax * calibration.radius, calibration.y - ay * calibration.radius));
+    });
+    this.controllerVectors.setPoints(vectors);
     this.invalidate();
   }
 
@@ -388,11 +461,15 @@ export class SceneController {
     this.waves.forEach((wave, index) => {
       const side = index < 2 ? 0 : 1;
       if (!snapshot.output || this.reducedMotion || snapshot.channel === (side === 0 ? 'right' : 'left')) { wave.setPoints([]); return; }
-      const t = ((nowMs / 700 + index / 2) % 1); const radius = 2.8 + t * 6;
+      const t = ((nowMs / 700 + index / 2) % 1); const radius = 3.5 + t * 16;
       const driver = this.workstation.drivers[side]!;
-      const ring = Array.from({ length: 32 }, (_, i) => driver.localToWorld(new Vector3(Math.cos(i / 32 * Math.PI * 2) * radius, Math.sin(i / 32 * Math.PI * 2) * radius, 0.3 + t * 4)));
-      wave.setPoints(ring.flatMap((point, i) => [point, ring[(i + 1) % ring.length]!]));
-      wave.object.material.opacity = (1 - t) * 0.7 * snapshot.outputLevel; wave.object.material.transparent = true;
+      const ring = Array.from({ length: 33 }, (_, i) => {
+        const angle = (i / 32 - .5) * Math.PI * .72;
+        return driver.localToWorld(new Vector3(Math.cos(angle) * radius * (side === 0 ? 1 : -1), Math.sin(angle) * radius, .3));
+      });
+      wave.setPoints(ring.flatMap((point, i) => i === 0 ? [] : [ring[i - 1]!, point]));
+      // This is initiated playback geometry, not measured acoustic amplitude.
+      wave.object.material.opacity = (1 - t) * .45; wave.object.material.transparent = true;
     });
     this.invalidate();
   }
@@ -426,12 +503,14 @@ export class SceneController {
   render(): void {
     if (!this.dirty) return;
     this.worldRoot.updateMatrixWorld(true);
+    this.presentFields();
     this.workstation.update(this.cameraRig.camera);
     if (this.debugOptions.flat) {
       this.workstation.solids.forEach(solid => { solid.mesh.material = this.materials.white; });
       this.workstation.screen.material.color.set(0xffffff);
       this.keys.inspect(); this.workstation.cameraStatus.object.visible = false;
       this.trail.object.visible = false; this.waveform.object.visible = false; this.waves.forEach(wave => { wave.object.visible = false; });
+      this.direction.object.visible = false; this.controllerVectors.object.visible = false;
       this.stickScopes.forEach(scope=>{scope.object.visible=false;});
     }
     if (this.debugOptions.silhouette) {
@@ -440,6 +519,7 @@ export class SceneController {
       this.workstation.solids.forEach(solid => { solid.mesh.material = this.materials.ink; solid.silhouette.object.visible = false; solid.construction.object.visible = false; });
       this.worldRoot.traverse(object => { if (object.name === 'ContactShadow' || object.name === 'FocusDetail') object.visible = false; });
       this.trail.object.visible = false; this.waveform.object.visible = false; this.waves.forEach(wave => { wave.object.visible = false; }); this.workstation.cameraStatus.object.visible=false;
+      this.direction.object.visible = false; this.controllerVectors.object.visible = false;
       this.stickScopes.forEach(scope=>{scope.object.visible=false;});
     }
     this.debug?.update();
@@ -451,6 +531,7 @@ export class SceneController {
     this.motion.cancel();
     this.workstation.dispose();
     this.keys.dispose(); this.trail.dispose();
+    this.direction.dispose(); this.controllerVectors.dispose(); this.measurementField.dispose();
     this.waveform.dispose(); this.waves.forEach((wave) => wave.dispose()); this.stickScopes.forEach(scope=>scope.dispose()); this.screenTexture?.dispose(); this.legends.dispose();
     this.debug?.dispose();
     this.scene.clear();
