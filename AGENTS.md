@@ -1,49 +1,15 @@
-# IO Engineering Instructions
-IO - A space for your devices
+# IO engineering instructions
 
 IO is a static client-side peripheral testing application.
 
-Before making architectural, spatial, interaction, or visual changes, read:
-- docs\IO_Product_Interaction_Spec.md
-- docs\IO_Technical_Implementation_Spec.md
-
-For spatial geometry or camera work also read:
-- docs\IO_Spatial_Construction_Sheet.md
-
-For animation work also read:
-- docs\IO_Motion_Storyboard.md
-
-## Non-negotiable architecture
-
-- One persistent Three.js scene.
-- One shared world coordinate system.
-- Devices are never recreated when entering focus.
-- Device adapters never manipulate Three.js objects directly.
-- Use explicit scene state rather than scattered booleans.
-- Use one application render loop.
-- Browser-derived measurements must never be represented as direct hardware telemetry.
-
-## Visual priorities
-
-1. coherent projection
-2. silhouette
-3. occlusion
-4. grounding
-5. line hierarchy
-6. motion continuity
-7. fine detail
-
-Do not introduce photorealistic lighting, large UI frameworks,
-dashboard/card UI, or unnecessary dependencies.
+Before architectural, spatial, interaction, visual, or animation changes, read [the current principles](docs/IO_Principles.md). Keep app usage in README.md and durable product, engineering, and design guidance in that document. Do not add historical implementation reports or generated review evidence to the repository.
 
 ## Workflow
 
-Before implementing a task:
-1. inspect relevant existing code;
-2. identify the applicable specification sections;
-3. state the implementation approach;
-4. make the smallest coherent change;
-5. run tests/typecheck/build;
-6. report deviations from specification explicitly.
+1. Inspect relevant code and applicable principles.
+2. State the implementation approach.
+3. Make the smallest coherent change and preserve unrelated work.
+4. Run relevant tests, typecheck, and build.
+5. Report actual verification and any deviations explicitly.
 
-Do not silently reinterpret the product specification.
+Use subagents only when requested or required by applicable instructions. Inspect their results before completing the task.

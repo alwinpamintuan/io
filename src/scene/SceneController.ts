@@ -368,7 +368,7 @@ export class SceneController {
     });
     this.stickScopes.forEach((scope,i) => {
       if (!snapshot?.standard || snapshot.axes.length < (i+1)*2) { scope.setPoints([]);return; }
-      // The gate is the diagnostic surface (Product §12.5 / Motion §13).
+      // The stick gate is the diagnostic surface.
       // World-space rings remain attached through lift/yaw and leave annotations
       // free to grow with real button observations in adjacent negative space.
       const visual=this.workstation.visuals.get('controller')!;

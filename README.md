@@ -1,6 +1,6 @@
 # IO — A space for your devices
 
-A static, client-side peripheral tester built with TypeScript and Three.js. Six persistent devices share one desk, world, camera, and render loop. Select a device to test it; the IO mark returns to the workstation.
+A static, client-side peripheral tester built with TypeScript and Three.js. Seven persistent devices share one desk, world, camera, and render loop. Select a device to test it; the IO mark returns to the workstation.
 
 ## Run and build
 
@@ -21,12 +21,13 @@ Deploy the contents of `dist/` to a static HTTPS host. Assets use relative URLs 
 
 - **Keyboard:** a full 104-key ANSI model, independent held/tested states, key combinations, last key, hold/repeat timing, and Reset. Physical `code` is preferred, with character/location fallback. Browser and OS shortcuts remain reserved.
 - **Mouse:** button states, wheel direction/accumulation, click intervals, short movement trails, and a rolling estimate of browser-delivered event frequency. Coalesced events are used when available; this is not hardware polling-rate telemetry.
-- **Monitor:** white, black, gray, RGB, grayscale gradient, grid/circle, moving bar, and repaint cadence. Fullscreen is explicit. Repaint cadence is a browser estimate, not measured panel response time or a guaranteed hardware refresh rate.
-- **Webcam:** explicit Start/Stop, local preview on the mounted camera, available track width/height/frame-rate/aspect settings, and normalized permission/device errors.
-- **Controller:** connection detection, controller selection, standard physical button/stick mapping, raw axis values and rest offsets, generic indexed mapping, and an optional brief haptic pulse where supported.
-- **Audio:** one-second conservative 220/440/880 Hz left/right/both tones, Stop tone, optional microphone waveform and digital RMS amplitude, and explicit Stop microphone. The microphone is never played through speakers. Digital amplitude is not calibrated sound pressure.
+- **Monitor:** 16 inspection patterns, including near-black/white steps, color ramps, grid/circle, alternating pixels, adjustable motion, and repaint cadence. A glyph rail and motion controls remain available in fullscreen. Repaint cadence is a browser estimate, not measured panel response time or a guaranteed hardware refresh rate.
+- **Webcam:** explicit Start/Stop, an adjacent local viewing frame connected to the mounted camera, contain-fit video, mirror preference, reported track settings, and normalized permission/device errors.
+- **Controller:** connection/selection, standard physical button/stick mapping, Neutral/Xbox/PlayStation display legends, raw axes and vector scopes, generic indexed mapping, and optional feature-detected haptics. Display styles do not change mapping.
+- **Audio:** conservative one-second 220/440/880 Hz left/right/both output tones and Stop, with channel-gated wavefronts.
+- **Microphone:** independent Start/Stop, local waveform and digital RMS amplitude. Input is never played through speakers. Digital amplitude is not calibrated sound pressure.
 
-Routes are `#keyboard`, `#mouse`, `#monitor`, `#camera`, `#controller`, and `#audio`. Empty/unknown hashes show overview. Deep links and Back/Forward work during transitions. Keyboard users can Tab to semantic device buttons; narrow viewports expose the buttons visibly. Reduced motion uses a short controlled camera cut. If WebGL2 initialization fails, the same adapters remain available through semantic controls and a 2D test surface.
+Routes are `#keyboard`, `#mouse`, `#monitor`, `#camera`, `#controller`, `#audio`, and `#microphone`. Empty/unknown hashes show overview. Deep links and Back/Forward work during transitions. Keyboard users can Tab to semantic device buttons; narrow viewports expose the buttons visibly. Reduced motion uses a short controlled camera cut. If WebGL2 initialization fails, the same adapters remain available through semantic controls and a 2D test surface.
 
 ### Device selection across viewport sizes
 
@@ -36,43 +37,12 @@ In the 3D overview, viewports wider than 700 CSS pixels use the illustrated devi
 
 IO has no analytics, upload, recording, persistent diagnostic storage, or external runtime assets. Device observations stay in memory on the page. Camera/microphone permission is requested only by the corresponding Start button; selecting a device does not prompt. Stop, leaving focus, backgrounding the page, or shutdown stops media tracks and audio. Stale asynchronous requests cannot reactivate devices after cancellation. Browser permission preferences are managed by the browser.
 
-## Architecture
+## Engineering
 
-- `src/app`: explicit state/revisions, hash routing, capabilities, the single RAF owner, compatibility surface, and development inspection.
-- `src/scene`: one persistent scene and perspective camera; cancellable choreography; unlit authored solids; CSS-pixel silhouette/construction/detail lines; desk contact shadows; reusable line buffers; instanced keycaps and shared legend atlas.
-- `src/input`: focus-scoped adapters publish plain snapshots and never manipulate Three.js objects. Active controller/monitor/audio polling joins the shared clock. Metrics update at a restrained cadence; screen-reader announcements report discrete state changes.
-- `src/overlay`: semantic controls and small measurements anchored to projected world points.
-- `src/main.ts`: wiring, selection, resizing, context recovery, and symmetric cleanup.
+See [IO principles](docs/IO_Principles.md) for the current product, spatial, motion, architecture, and measurement rules.
 
-World units are centimeters: X right, Y toward the rear, Z up, desk Z=0. Device visual roots move in focus while the resting desk shadows remain attached to their supports. The webcam stays parented to the monitor mount. Pixel ratio is capped at 2. Idle scene redraws are skipped. Face polygons sharing a material are batched into a single draw group.
+Run `npm test`, `npm run typecheck`, and `npm run build` when changing the application. Authored device control points live in `scripts/author-devices.mjs`; run `node scripts/author-devices.mjs` to regenerate `assets/devices.gltf`.
 
-The authoritative documents are in `docs/`. The complete implementation review, spatial adjustments, milestone reviews, and remaining release gates are recorded in `docs/IMPLEMENTATION_REVIEW.md`. The earlier renderer-spike review remains historical evidence.
+Development inspection flags include `debugVisual`, `debugFlat`, `debugSilhouette`, `debugNoShadow`, `debugMotion`, `debugReducedMotion`, and `debugFallback`, supplied as URL query parameters. They are excluded from production.
 
-## Development inspection
-
-These flags only operate in development:
-
-```text
-/?debugFlat
-/?debugNoShadow
-/?debugGrid&debugBounds&debugAnchors&debugCamera&debugHitTargets
-/?debugMotion
-/?debugReducedMotion
-/?debugFallback
-```
-
-Motion inspection exposes transition selection/scrubbing, scene state, progress, camera pose, local transform state, active adapter, observed frame timing, draw calls, triangle counts, and long-task observations. Resume restores ordinary navigation.
-
-## Verification
-
-Tests cover routing/state revisions, persistent geometry/supports/occlusion, focus interruptions and resize, reduced motion, line buffer reuse, key mapping/listeners, timing windows, deferred media cancellation/errors, audio cancellation, gamepad normalization, and fullscreen aspect restoration. Build includes TypeScript checking.
-
-Visual comparison uses Pillow as a development-only QA dependency:
-
-```sh
-python scripts/compare_visuals.py artifacts/release/local/current
-```
-
-Six independently captured local states and their measured sizes are in `artifacts/release/local/`. Only changing annotation text is masked. The browser automation surface rendered smaller CSS viewports than requested, so those captures do **not** certify the prescribed desktop reference sizes. `artifacts/release/required-desktop-visual-manifest.json` preserves the required 1440×900/1280×720 capture plan for release acceptance.
-
-This is a buildable release candidate. Physical device, Firefox/Safari/macOS, fixed desktop visual acceptance, and integrated-GPU performance checks still require the manual matrix in the implementation review before a production-readiness claim.
+`scripts/verify-visuals.cjs` checks browser interactions, persistent scene geometry, and device presentation with synthetic inputs. It requires a local Playwright installation and Chromium; set `IO_PLAYWRIGHT_PATH` to the Playwright module and `IO_BASE_URL` to the running app. `IO_VERIFY_OUTPUT` selects the capture directory (default: ignored `artifacts/visuals`). These checks do not certify physical hardware, other browsers, assistive technology, or GPU performance.

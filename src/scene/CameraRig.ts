@@ -13,7 +13,7 @@ function copyPose(pose: CameraPose): CameraPose {
 }
 
 export function createOverviewPose(): CameraPose {
-  // Round 2 §4: pull back along the shared dimetric direction and center the
+  // Pull back along the shared dimetric direction and center the
   // lowered workstation mass, leaving air around the complete desk setup.
   return {
     position: new Vector3(103, -411, 204),

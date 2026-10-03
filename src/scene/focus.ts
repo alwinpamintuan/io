@@ -12,7 +12,7 @@ export const FOCUS_YAW: Record<DeviceId, number> = {
   keyboard: 4, mouse: -4, monitor: 0, camera: 0, controller: 11, audio: 0, microphone: 0,
 };
 
-// Construction-sheet poses tuned to its occupancy targets under the actual camera.
+// Focus poses tuned for readable devices under the shared camera.
 export function focusPose(id: DeviceId, target: Vector3, aspect: number): CameraPose {
   const offsets: Record<DeviceId, Vector3> = {
     keyboard: new Vector3(0, -20, 58), mouse: new Vector3(-9, -23, 24),

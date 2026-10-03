@@ -4,7 +4,7 @@ const runtime = process.env.IO_PLAYWRIGHT_PATH || path.join(process.env.USERPROF
 const { chromium } = require(runtime);
 const browserRoot = path.join(process.env.LOCALAPPDATA, 'ms-playwright');
 const installed = fs.readdirSync(browserRoot).filter(n => /^chromium-\d+$/.test(n)).sort((a,b) => Number(b.split('-')[1])-Number(a.split('-')[1]))[0];
-const output = 'artifacts/round2/after', base = process.env.IO_BASE_URL || 'http://127.0.0.1:5175';
+const output = process.env.IO_VERIFY_OUTPUT || 'artifacts/visuals', base = process.env.IO_BASE_URL || 'http://127.0.0.1:5173';
 fs.mkdirSync(output, {recursive:true});
 (async () => {
   const browser = await chromium.launch({headless:true, executablePath:path.join(browserRoot,installed,'chrome-win64/chrome.exe')});
@@ -13,9 +13,9 @@ fs.mkdirSync(output, {recursive:true});
     const page = await browser.newPage({viewport:{width:1440,height:900}});
     page.on('pageerror', e => report.errors.push(e.message));
     await page.addInitScript(() => {
-      window.round2Fixture = {pad:null,mediaCalls:0};
-      Object.defineProperty(navigator,'getGamepads',{value:()=>round2Fixture.pad ? [round2Fixture.pad] : []});
-      if(navigator.mediaDevices) Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{round2Fixture.mediaCalls++;throw new DOMException('Fixture denial','NotAllowedError');}});
+      window.visualFixture = {pad:null,mediaCalls:0};
+      Object.defineProperty(navigator,'getGamepads',{value:()=>visualFixture.pad ? [visualFixture.pad] : []});
+      if(navigator.mediaDevices) Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{visualFixture.mediaCalls++;throw new DOMException('Fixture denial','NotAllowedError');}});
     });
     const check = (label, value) => { assert.ok(value,label); report.checks.push(label); };
     const capture = async (name, viewport) => {
@@ -68,7 +68,7 @@ fs.mkdirSync(output, {recursive:true});
     check('Mouse primary press remains readable',await page.locator('.measurements').textContent().then(t=>t.includes('Left down')));
     await page.evaluate(()=>document.querySelector('#scene').dispatchEvent(new PointerEvent('pointerup',{pointerType:'mouse',button:0,buttons:0,bubbles:true})));await route(null);
     await route('controller');
-    await page.evaluate(()=>round2Fixture.pad={id:'Standard fixture',index:0,connected:true,mapping:'standard',timestamp:1,axes:[.45,.35,-.3,-.4],buttons:Array.from({length:17},(_,i)=>({value:[0,8,9,16].includes(i)?1:0,pressed:[0,8,9,16].includes(i)}))});
+    await page.evaluate(()=>visualFixture.pad={id:'Standard fixture',index:0,connected:true,mapping:'standard',timestamp:1,axes:[.45,.35,-.3,-.4],buttons:Array.from({length:17},(_,i)=>({value:[0,8,9,16].includes(i)?1:0,pressed:[0,8,9,16].includes(i)}))});
     for (const viewport of [{width:1440,height:900},{width:1280,height:720}]) {
       await page.setViewportSize(viewport);await page.waitForTimeout(200);await capture('controller-pressed',viewport);
       check(`controller ${viewport.width}: stick diagrams remain on the actual gates`,await page.evaluate(()=>{
@@ -81,16 +81,16 @@ fs.mkdirSync(output, {recursive:true});
         return scene.workstation.sticks.every((stick,i)=>{
           const scope=scene.stickScopes[i],a=scope.object.geometry.getAttribute('instanceEnd');
           const endpoint=visual.worldToLocal(visual.position.clone().fromBufferAttribute(a,scope.object.geometry.instanceCount-1));
-          const x=round2Fixture.pad.axes[i*2],y=round2Fixture.pad.axes[i*2+1],cx=i===0?-2.7:2.7;
+          const x=visualFixture.pad.axes[i*2],y=visualFixture.pad.axes[i*2+1],cx=i===0?-2.7:2.7;
           return Math.abs(stick.position.x-cx-x*.7)<.0001&&Math.abs(stick.position.y+1+y*.7)<.0001&&Math.abs(endpoint.x-cx-x*1.6)<.0001&&Math.abs(endpoint.y+1+y*1.6)<.0001;
         });
       }));
-      await page.evaluate(()=>round2Fixture.pad.buttons.forEach(b=>{b.value=1;b.pressed=true;}));await page.waitForTimeout(200);await capture('controller-all-pressed',viewport);
+      await page.evaluate(()=>visualFixture.pad.buttons.forEach(b=>{b.value=1;b.pressed=true;}));await page.waitForTimeout(200);await capture('controller-all-pressed',viewport);
     }
     await page.setViewportSize({width:1440,height:900});
-    await page.evaluate(()=>{round2Fixture.pad.mapping='';});await page.waitForTimeout(200);
+    await page.evaluate(()=>{visualFixture.pad.mapping='';});await page.waitForTimeout(200);
     check('Unknown mapping does not imply physical button labels',await page.evaluate(()=>!ioInspection.scene.workstation.buttons.get(0).object.getObjectByName('ControlLegend').visible));
-    await page.evaluate(()=>{round2Fixture.pad=null;});await route(null);
+    await page.evaluate(()=>{visualFixture.pad=null;});await route(null);
     // Art-direction variant: the same display and resting motif under the focus camera.
     // This is an inspection preview, deliberately outside the functional solid fields.
     await page.evaluate(()=>{ioInspection.inputs.suspend();ioInspection.scene.preview('monitor',1);ioInspection.scene.motion.cancel();ioInspection.scene.resetMonitor();ioInspection.scene.render();});
@@ -100,10 +100,11 @@ fs.mkdirSync(output, {recursive:true});
     await page.emulateMedia({reducedMotion:'reduce'});
     await page.goto(`${base}/?debugMotion`);await page.addStyleTag({content:'.motion-debug {display:none !important;}'});await page.waitForTimeout(600);
     await route('controller');check('Reduced-motion controller reaches active focus',await page.locator('#status').textContent()==='controller ready.');await route(null);
-    check('Overview and unstarted media focus never request media',await page.evaluate(()=>round2Fixture.mediaCalls===0));
+    check('Overview and unstarted media focus never request media',await page.evaluate(()=>visualFixture.mediaCalls===0));
     check('No browser page errors',report.errors.length===0);
     console.log(`Verified ${report.checks.length} assertions; captured ${report.captures.length} views.`);
   } finally {
     fs.writeFileSync(path.join(output,'verification.json'),JSON.stringify(report,null,2));await browser.close();
   }
 })().catch(e=>{console.error(e);process.exitCode=1;});
+

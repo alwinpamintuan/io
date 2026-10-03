@@ -25,7 +25,7 @@ describe('persistent workstation', () => {
       return Array.from({ length: attribute.count }, (_, i) => solid.mesh.localToWorld(new Vector3().fromBufferAttribute(attribute, i)).project(rig.camera));
     });
     const occupancy = (Math.max(...projected.map((point) => point.x)) - Math.min(...projected.map((point) => point.x))) / 2;
-    // Round 2 §4/15: calm outer margins, coherent internal density.
+    // Calm outer margins and coherent internal density.
     expect(occupancy).toBeGreaterThan(0.5);
     expect(occupancy).toBeLessThanOrEqual(0.7);
     const height = (Math.max(...projected.map(point => point.y)) - Math.min(...projected.map(point => point.y))) / 2;
